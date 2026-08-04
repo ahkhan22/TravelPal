@@ -1,0 +1,91 @@
+// Core data model for TravelPal.
+// A Trip is organized around Days. Each Day owns the meals, places, photos and
+// expenses that happened that day. Expenses roll up into the Trip wallet.
+
+export type ExpenseCategory =
+  | 'Flights'
+  | 'Hotel'
+  | 'Food'
+  | 'Transport'
+  | 'Shopping'
+  | 'Activities'
+  | 'Other';
+
+export type ExpenseSource = 'scan' | 'email' | 'card' | 'manual';
+
+export interface Expense {
+  id: string;
+  tripId: string;
+  /** Day index this expense belongs to, or null for trip-wide costs (flights, hotel). */
+  dayIndex: number | null;
+  label: string;
+  category: ExpenseCategory;
+  /** Amount in the traveller's home currency (USD in the sample data). */
+  amountHome: number;
+  /** Optional original amount as printed on the receipt. */
+  local?: { amount: number; currency: string };
+  source: ExpenseSource;
+  merchant?: string;
+  /** ISO date string. */
+  date?: string;
+}
+
+export interface ReceiptLine {
+  label: string;
+  price: string;
+}
+
+export interface Receipt {
+  items: ReceiptLine[];
+  total: string;
+  usd: string;
+  source: ExpenseSource;
+}
+
+export interface Meal {
+  id: string;
+  name: string;
+  location: string;
+  /** Short description; may contain **bold** markers for emphasis. */
+  dish: string;
+  rating: number; // 0-5
+  gradient: number;
+  receipt: Receipt;
+}
+
+export interface Place {
+  id: string;
+  name: string;
+  note: string;
+  gradient: number;
+  favorite?: boolean;
+}
+
+export interface Hero {
+  caption: string;
+  gradient: number;
+  favorite?: boolean;
+}
+
+export interface Day {
+  index: number;
+  dateLabel: string;
+  title: string;
+  heroes: Hero[];
+  meals: Meal[];
+  places: Place[];
+  gallery: string[];
+  photoCount: number;
+}
+
+export interface Trip {
+  id: string;
+  title: string;
+  destination: string;
+  subtitle: string;
+  route: string;
+  coverGradient: number;
+  homeCurrency: string;
+  photosKept: number;
+  days: Day[];
+}
