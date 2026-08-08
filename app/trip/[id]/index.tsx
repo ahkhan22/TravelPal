@@ -1,10 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DayCard } from '../../../src/components/DayCard';
 import { Wallet } from '../../../src/components/Wallet';
+import { exportRecapPdf } from '../../../src/exportRecap';
 import { daySpend, tripTotal, usd } from '../../../src/format';
 import { gradient } from '../../../src/gradients';
 import { useStore } from '../../../src/store';
@@ -16,6 +18,7 @@ export default function TripSummaryScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { getTrip, getExpenses } = useStore();
+  const [exporting, setExporting] = useState(false);
 
   const trip = getTrip(id);
   if (!trip) {
@@ -31,6 +34,18 @@ export default function TripSummaryScreen() {
   const placesCount = trip.days.reduce((n, d) => n + d.places.length, 0);
   const scanned = expenses.filter((e) => e.source === 'scan').length;
   const emailed = expenses.filter((e) => e.source === 'email').length;
+
+  async function onShare() {
+    if (!trip || exporting) return;
+    try {
+      setExporting(true);
+      await exportRecapPdf(trip, expenses);
+    } catch {
+      Alert.alert('Export failed', 'Could not create the PDF. Please try again.');
+    } finally {
+      setExporting(false);
+    }
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.paper }}>
@@ -55,6 +70,17 @@ export default function TripSummaryScreen() {
             style={[styles.backBtn, { top: insets.top + 8 }]}
           >
             <Ionicons name="chevron-back" size={22} color="#fff" />
+          </Pressable>
+          <Pressable
+            onPress={onShare}
+            accessibilityLabel="Share recap as PDF"
+            style={[styles.shareBtn, { top: insets.top + 8 }]}
+          >
+            {exporting ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Ionicons name="share-outline" size={20} color="#fff" />
+            )}
           </Pressable>
           <View style={[styles.coverBody, { paddingTop: insets.top + 60 }]}>
             <Text style={[styles.kicker, { fontFamily: fonts.mono }]}>✦ TRAVELPAL · TRIP RECAP</Text>
@@ -99,6 +125,33 @@ export default function TripSummaryScreen() {
             emailReceipts={emailed}
             onScan={() => router.push(`/trip/${trip.id}/receipt`)}
           />
+        </View>
+
+        <View style={styles.shareSection}>
+          <Pressable
+            onPress={onShare}
+            disabled={exporting}
+            accessibilityLabel="Share this recap as a PDF"
+            style={({ pressed }) => [styles.shareCta, pressed && { opacity: 0.9 }]}
+          >
+            <LinearGradient
+              colors={[colors.teal, colors.saffron]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            {exporting ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Ionicons name="share-outline" size={18} color="#fff" />
+            )}
+            <Text style={styles.shareCtaText}>
+              {exporting ? 'Building PDF…' : 'Share this recap'}
+            </Text>
+          </Pressable>
+          <Text style={{ color: colors.inkSoft, fontFamily: fonts.mono, fontSize: 10.5, marginTop: 10 }}>
+            Exports a one-page PDF you can text, email or save.
+          </Text>
         </View>
 
         <View style={styles.footer}>
@@ -189,6 +242,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  shareBtn: {
+    position: 'absolute',
+    right: 14,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   coverBody: { padding: 24, gap: 8 },
   kicker: { color: 'rgba(255,255,255,0.92)', fontSize: 11, letterSpacing: 2 },
   title: { color: '#fff', fontSize: 46, fontWeight: '600', lineHeight: 48 },
@@ -198,6 +261,18 @@ const styles = StyleSheet.create({
   statCell: { flex: 1, paddingVertical: 18, paddingHorizontal: 14, borderLeftWidth: 1 },
   section: { padding: 22, gap: 20 },
   secHead: { flexDirection: 'row', alignItems: 'baseline', gap: 10 },
+  shareSection: { paddingHorizontal: 22, paddingTop: 6, alignItems: 'center' },
+  shareCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    alignSelf: 'stretch',
+    paddingVertical: 15,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  shareCtaText: { color: '#fff', fontWeight: '600', fontSize: 15 },
   footer: { padding: 22, alignItems: 'center' },
   fab: {
     position: 'absolute',

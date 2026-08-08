@@ -25,6 +25,10 @@ Pakistan) so every screen shows real content:
 The wallet is computed live from the expense list, so a scanned receipt updates
 the totals immediately.
 
+**Share as PDF** — the recap screen's share button renders the trip to a
+one-page PDF (`src/recapHtml.ts` → `expo-print`) and opens the native share
+sheet (`expo-sharing`), so you can text, email or save it.
+
 ## Design system
 
 `src/theme.ts` holds the palette (saffron + peacock teal on warm paper), light
@@ -56,4 +60,3 @@ Then press `i` (iOS simulator), `a` (Android emulator), or scan the QR with the
 - Real photo import + tagging photos to meals/places
 - Email receipt ingestion and OCR on scanned receipts
 - Local persistence, then sync
-- PDF export / share sheet for the recap
