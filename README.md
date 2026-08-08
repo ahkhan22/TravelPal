@@ -40,8 +40,10 @@ real `<Image>` sources as photo storage lands.
 
 `src/types.ts` — `Trip → Day → { meals, places, photos, expenses }`.
 `src/data.ts` — the seeded sample trip and its expenses.
-`src/store.tsx` — a small in-memory store (`useStore`) with `addExpense`.
-Real persistence and ingestion (email, camera roll) slot in behind this.
+`src/store.tsx` — the store (`useStore`) with `addExpense`. Seed data stays
+code-defined; user-added expenses persist to AsyncStorage (`src/storage.ts`)
+and are merged back over the seeds on launch, so they survive app restarts.
+Real ingestion (email, camera roll) slots in behind this same interface.
 
 ## Run it
 
@@ -59,4 +61,4 @@ Then press `i` (iOS simulator), `a` (Android emulator), or scan the QR with the
 - New-trip creation and trip editing
 - Real photo import + tagging photos to meals/places
 - Email receipt ingestion and OCR on scanned receipts
-- Local persistence, then sync
+- Cloud sync (local persistence is in place)
