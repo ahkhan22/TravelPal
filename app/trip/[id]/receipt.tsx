@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -11,11 +12,23 @@ import type { ExpenseCategory } from '../../../src/types';
 
 const CATEGORIES: ExpenseCategory[] = ['Food', 'Transport', 'Shopping', 'Activities', 'Hotel', 'Other'];
 const PKR_PER_USD = 281;
+type Currency = 'PKR' | 'USD';
 
-// Sample values, standing in for OCR output. Once a receipt image is captured
-// TravelPal reads the merchant, total and date; here we prefill an editable
-// example so the flow is fully usable end to end.
-const EXTRACTED = { merchant: 'Butt Karahi', amountLocal: '3200', currency: 'PKR' };
+// Copies a captured image into the app's document directory so it survives
+// restarts (the picker's original URI lives in a cache that can be cleared).
+// Falls back to the original URI if the copy fails.
+async function persistPhoto(uri: string): Promise<string> {
+  try {
+    const dir = FileSystem.documentDirectory;
+    if (!dir) return uri;
+    const ext = (uri.split('.').pop() || 'jpg').split('?')[0];
+    const dest = `${dir}receipt-${Date.now()}.${ext}`;
+    await FileSystem.copyAsync({ from: uri, to: dest });
+    return dest;
+  } catch {
+    return uri;
+  }
+}
 
 export default function ReceiptScreen() {
   const { colors, fonts } = useTheme();
@@ -26,12 +39,16 @@ export default function ReceiptScreen() {
   const trip = getTrip(id);
 
   const [imageUri, setImageUri] = useState<string | null>(null);
-  const [merchant, setMerchant] = useState(EXTRACTED.merchant);
-  const [amountLocal, setAmountLocal] = useState(EXTRACTED.amountLocal);
+  const [merchant, setMerchant] = useState('');
+  const [amount, setAmount] = useState('');
+  const [currency, setCurrency] = useState<Currency>('PKR');
   const [category, setCategory] = useState<ExpenseCategory>('Food');
   const [dayIndex, setDayIndex] = useState<number>(trip?.days.length ?? 1);
+  const [saving, setSaving] = useState(false);
 
-  const amountHome = Math.round((Number(amountLocal) || 0) / PKR_PER_USD);
+  const amountNum = Number(amount) || 0;
+  const amountHome = currency === 'PKR' ? Math.round(amountNum / PKR_PER_USD) : Math.round(amountNum);
+  const canSave = amountNum > 0 && !saving;
 
   async function capture(mode: 'camera' | 'library') {
     try {
@@ -50,46 +67,61 @@ export default function ReceiptScreen() {
       if (!result.canceled && result.assets[0]) {
         setImageUri(result.assets[0].uri);
       }
-    } catch (e) {
+    } catch {
       Alert.alert('Could not open camera', 'Something went wrong capturing the receipt.');
     }
   }
 
-  function save() {
-    if (!trip) return;
-    addExpense({
-      tripId: trip.id,
-      dayIndex,
-      label: merchant.trim() || 'Receipt',
-      category,
-      amountHome,
-      local: { amount: Number(amountLocal) || 0, currency: EXTRACTED.currency },
-      source: 'scan',
-      merchant: merchant.trim(),
-    });
-    Alert.alert('Saved to trip', `${merchant} · ${usd(amountHome)} added to Day ${dayIndex}.`, [
-      { text: 'Done', onPress: () => router.back() },
-    ]);
+  async function save() {
+    if (!trip || !canSave) return;
+    setSaving(true);
+    try {
+      const storedUri = imageUri ? await persistPhoto(imageUri) : undefined;
+      addExpense({
+        tripId: trip.id,
+        dayIndex,
+        label: merchant.trim() || 'Receipt',
+        category,
+        amountHome,
+        local: { amount: amountNum, currency },
+        source: 'scan',
+        merchant: merchant.trim() || undefined,
+        receiptPhotoUri: storedUri,
+      });
+      Alert.alert('Saved to trip', `${merchant.trim() || 'Receipt'} · ${usd(amountHome)} added to Day ${dayIndex}.`, [
+        { text: 'Done', onPress: () => router.back() },
+      ]);
+    } catch {
+      Alert.alert('Save failed', 'Could not save this expense. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.surface }}>
       <View style={[styles.head, { paddingTop: insets.top + 12, borderColor: colors.line }]}>
-        <Text style={{ color: colors.ink, fontFamily: fonts.display, fontSize: 19 }}>Receipt → expense</Text>
+        <Text style={{ color: colors.ink, fontFamily: fonts.display, fontSize: 19 }}>Add a receipt</Text>
         <Pressable onPress={() => router.back()} accessibilityLabel="Close" style={[styles.x, { borderColor: colors.line }]}>
           <Ionicons name="close" size={18} color={colors.ink} />
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 30, gap: 18 }}>
+      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 30, gap: 18 }} keyboardShouldPersistTaps="handled">
         {/* Capture area */}
         {imageUri ? (
-          <Image source={{ uri: imageUri }} style={[styles.preview, { borderColor: colors.line }]} resizeMode="cover" />
+          <View style={{ gap: 10 }}>
+            <Image source={{ uri: imageUri }} style={[styles.preview, { borderColor: colors.line }]} resizeMode="cover" />
+            <Pressable onPress={() => setImageUri(null)} style={styles.retake}>
+              <Ionicons name="refresh" size={15} color={colors.teal} />
+              <Text style={{ color: colors.teal, fontFamily: fonts.mono, fontSize: 12 }}>Retake / choose another</Text>
+            </Pressable>
+          </View>
         ) : (
           <View style={[styles.capture, { borderColor: colors.line, backgroundColor: colors.surfaceAlt }]}>
             <Ionicons name="receipt-outline" size={30} color={colors.inkSoft} />
             <Text style={{ color: colors.inkSoft, fontFamily: fonts.mono, fontSize: 12, textAlign: 'center' }}>
-              Snap or upload a receipt.{'\n'}TravelPal reads the total and converts the currency.
+              Snap or upload your receipt,{'\n'}then add the details below.
             </Text>
             <View style={styles.captureBtns}>
               <Pressable onPress={() => capture('camera')} style={[styles.btn, styles.btnPrimary]}>
@@ -104,29 +136,48 @@ export default function ReceiptScreen() {
           </View>
         )}
 
-        {/* Extracted / editable fields */}
+        {/* Details */}
         <View style={{ gap: 16 }}>
           <Field label="Merchant" colors={colors} fonts={fonts}>
             <TextInput
               value={merchant}
               onChangeText={setMerchant}
-              style={[styles.input, { color: colors.ink, borderColor: colors.line }]}
+              placeholder="e.g. Butt Karahi"
               placeholderTextColor={colors.inkSoft}
+              style={[styles.input, { color: colors.ink, borderColor: colors.line }]}
             />
           </Field>
 
-          <Field label="Amount (PKR)" colors={colors} fonts={fonts}>
+          <Field label="Currency" colors={colors} fonts={fonts}>
+            <View style={styles.chips}>
+              {(['PKR', 'USD'] as Currency[]).map((c) => {
+                const active = c === currency;
+                return (
+                  <Pressable
+                    key={c}
+                    onPress={() => setCurrency(c)}
+                    style={[styles.chip, { borderColor: colors.line }, active && { backgroundColor: colors.teal, borderColor: colors.teal }]}
+                  >
+                    <Text style={{ color: active ? '#fff' : colors.ink, fontSize: 12.5 }}>{c === 'PKR' ? '₨ PKR' : '$ USD'}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </Field>
+
+          <Field label={`Total (${currency})`} colors={colors} fonts={fonts}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               <TextInput
-                value={amountLocal}
-                onChangeText={setAmountLocal}
+                value={amount}
+                onChangeText={setAmount}
                 keyboardType="numeric"
-                style={[styles.input, { flex: 1, color: colors.ink, borderColor: colors.line }]}
+                placeholder="0"
                 placeholderTextColor={colors.inkSoft}
+                style={[styles.input, { flex: 1, color: colors.ink, borderColor: colors.line }]}
               />
-              <Text style={{ color: colors.inkSoft, fontFamily: fonts.mono, fontSize: 13 }}>
-                ≈ {usd(amountHome)}
-              </Text>
+              {currency === 'PKR' && amountNum > 0 ? (
+                <Text style={{ color: colors.inkSoft, fontFamily: fonts.mono, fontSize: 13 }}>≈ {usd(amountHome)}</Text>
+              ) : null}
             </View>
           </Field>
 
@@ -138,11 +189,7 @@ export default function ReceiptScreen() {
                   <Pressable
                     key={c}
                     onPress={() => setCategory(c)}
-                    style={[
-                      styles.chip,
-                      { borderColor: colors.line },
-                      active && { backgroundColor: colors.saffron, borderColor: colors.saffron },
-                    ]}
+                    style={[styles.chip, { borderColor: colors.line }, active && { backgroundColor: colors.saffron, borderColor: colors.saffron }]}
                   >
                     <Text style={{ color: active ? colors.onAccent : colors.ink, fontSize: 12.5 }}>{c}</Text>
                   </Pressable>
@@ -159,11 +206,7 @@ export default function ReceiptScreen() {
                   <Pressable
                     key={d.index}
                     onPress={() => setDayIndex(d.index)}
-                    style={[
-                      styles.chip,
-                      { borderColor: colors.line },
-                      active && { backgroundColor: colors.teal, borderColor: colors.teal },
-                    ]}
+                    style={[styles.chip, { borderColor: colors.line }, active && { backgroundColor: colors.teal, borderColor: colors.teal }]}
                   >
                     <Text style={{ color: active ? '#fff' : colors.ink, fontSize: 12.5 }}>Day {d.index}</Text>
                   </Pressable>
@@ -173,12 +216,12 @@ export default function ReceiptScreen() {
           </Field>
 
           <Text style={{ color: colors.inkSoft, fontFamily: fonts.mono, fontSize: 10.5, lineHeight: 16 }}>
-            Converted at ~{PKR_PER_USD} PKR = $1. During a trip, TravelPal assumes new receipts belong to it.
+            Type the merchant and total from your receipt for now — automatic reading is coming. PKR converts at ~{PKR_PER_USD} = $1.
           </Text>
         </View>
 
-        <Pressable onPress={save} style={[styles.btn, styles.btnPrimary, styles.save]}>
-          <Text style={styles.btnPrimaryText}>Save to trip</Text>
+        <Pressable onPress={save} disabled={!canSave} style={[styles.btn, styles.btnPrimary, styles.save, !canSave && { opacity: 0.5 }]}>
+          <Text style={styles.btnPrimaryText}>{saving ? 'Saving…' : 'Save to trip'}</Text>
         </Pressable>
       </ScrollView>
     </View>
@@ -227,6 +270,7 @@ const styles = StyleSheet.create({
   },
   captureBtns: { flexDirection: 'row', gap: 10, marginTop: 4 },
   preview: { width: '100%', height: 240, borderRadius: 14, borderWidth: 1 },
+  retake: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 4 },
   btn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 11 },
   btnPrimary: { backgroundColor: '#0F5D63' },
   btnPrimaryText: { color: '#fff', fontWeight: '600', fontSize: 14 },

@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PhotoTile } from '../../../../src/components/PhotoTile';
 import { RichText, Stars } from '../../../../src/components/inline';
@@ -72,6 +72,9 @@ export default function DayScreen() {
               <Text style={{ flex: 1, color: colors.ink, fontSize: 13.5 }} numberOfLines={1}>
                 {e.label}
               </Text>
+              {e.receiptPhotoUri ? (
+                <Image source={{ uri: e.receiptPhotoUri }} style={[styles.expThumb, { borderColor: colors.line }]} />
+              ) : null}
               <SourceTag source={e.source} theme={theme} />
               <Text style={{ color: colors.ink, fontFamily: fonts.mono, fontSize: 13 }}>{usd(e.amountHome)}</Text>
             </View>
@@ -181,6 +184,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { flexDirection: 'row', alignItems: 'baseline', gap: 10, marginTop: 24, marginBottom: 12, flexWrap: 'wrap' },
   expRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 9, borderBottomWidth: 1 },
+  expThumb: { width: 26, height: 26, borderRadius: 5, borderWidth: 1 },
   cat: {
     fontSize: 9.5,
     letterSpacing: 0.4,

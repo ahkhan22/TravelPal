@@ -28,6 +28,8 @@ export interface Expense {
   merchant?: string;
   /** ISO date string. */
   date?: string;
+  /** Local file URI of the captured receipt photo, if any. */
+  receiptPhotoUri?: string;
 }
 
 export interface ReceiptLine {
