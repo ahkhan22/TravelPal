@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { tripTotal, usd } from '../src/format';
 import { gradient } from '../src/gradients';
@@ -12,7 +12,8 @@ export default function TripsScreen() {
   const { colors, fonts } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { trips, getExpenses } = useStore();
+  const { trips, getExpenses, getPhotos, getAllPhotos } = useStore();
+  const hasPhotos = getAllPhotos().length > 0;
 
   return (
     <ScrollView
@@ -34,9 +35,28 @@ export default function TripsScreen() {
         <Text style={[styles.kicker, { color: colors.inkSoft, fontFamily: fonts.mono }]}>YOUR TRIPS</Text>
       </View>
 
+      {hasPhotos && (
+        <Pressable
+          onPress={() => router.push('/collections')}
+          accessibilityRole="button"
+          style={({ pressed }) => [
+            styles.browse,
+            { borderColor: colors.line, backgroundColor: colors.surface },
+            pressed && { borderColor: colors.saffron },
+          ]}
+        >
+          <Ionicons name="pricetags-outline" size={18} color={colors.teal} />
+          <Text style={{ color: colors.ink, fontFamily: fonts.body, fontSize: 14, fontWeight: '600' }}>Browse photos by tag</Text>
+          <View style={{ flex: 1 }} />
+          <Ionicons name="chevron-forward" size={18} color={colors.inkSoft} />
+        </Pressable>
+      )}
+
       {trips.map((trip) => {
         const expenses = getExpenses(trip.id);
         const cover = gradient(trip.coverGradient);
+        const tripPhotos = getPhotos(trip.id);
+        const coverPhoto = tripPhotos.find((p) => p.favorite) ?? tripPhotos[tripPhotos.length - 1];
         return (
           <Pressable
             key={trip.id}
@@ -49,12 +69,16 @@ export default function TripsScreen() {
             ]}
           >
             <View style={styles.cover}>
-              <LinearGradient
-                colors={cover as unknown as [string, string, ...string[]]}
-                start={{ x: 0.1, y: 0 }}
-                end={{ x: 0.9, y: 1 }}
-                style={StyleSheet.absoluteFill}
-              />
+              {coverPhoto ? (
+                <Image source={{ uri: coverPhoto.uri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+              ) : (
+                <LinearGradient
+                  colors={cover as unknown as [string, string, ...string[]]}
+                  start={{ x: 0.1, y: 0 }}
+                  end={{ x: 0.9, y: 1 }}
+                  style={StyleSheet.absoluteFill}
+                />
+              )}
               <LinearGradient
                 colors={['transparent', 'rgba(0,0,0,0.6)']}
                 start={{ x: 0, y: 0.3 }}
@@ -115,6 +139,15 @@ const styles = StyleSheet.create({
   mark: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   brand: { fontSize: 24, fontWeight: '600' },
   kicker: { fontSize: 11, letterSpacing: 2 },
+  browse: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
   card: { borderWidth: 1, borderRadius: 14, overflow: 'hidden' },
   cover: { height: 210, justifyContent: 'flex-end' },
   coverBody: { padding: 18, gap: 6 },

@@ -61,6 +61,7 @@ interface StoreValue {
   getExpenses: (tripId: string) => Expense[];
   addExpense: (expense: Omit<Expense, 'id'>) => void;
   getPhotos: (tripId: string) => Photo[];
+  getAllPhotos: () => Photo[];
   getPhoto: (id: string) => Photo | undefined;
   addPhotos: (photos: Omit<Photo, 'id'>[]) => void;
   updatePhoto: (id: string, patch: Partial<Photo>) => void;
@@ -110,6 +111,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       getExpenses: (tripId) => expenses.filter((e) => e.tripId === tripId),
       addExpense: (expense) => dispatch({ type: 'ADD_EXPENSE', expense: { ...expense, id: makeId('exp') } }),
       getPhotos: (tripId) => state.userPhotos.filter((p) => p.tripId === tripId),
+      getAllPhotos: () => state.userPhotos,
       getPhoto: (id) => state.userPhotos.find((p) => p.id === id),
       addPhotos: (photos) =>
         dispatch({ type: 'ADD_PHOTOS', photos: photos.map((p) => ({ ...p, id: makeId('pho') })) }),

@@ -91,6 +91,8 @@ export interface Photo {
   mealId?: string;
   placeId?: string;
   favorite?: boolean;
+  /** Freeform, cross-trip tags (e.g. "Outfit", "Sunset") for browsing/search. */
+  labels?: string[];
 }
 
 export interface Trip {

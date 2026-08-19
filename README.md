@@ -19,8 +19,11 @@ Pakistan) so every screen shows real content:
   (tap a receipt thumbnail to view it full-screen), meals with itemized receipts,
   places, and the photo roll. **Add photos** imports from the camera roll; tap a
   photo to open the editor (`app/trip/[id]/photo/[photoId].tsx`) to caption it,
-  mark it a favorite, or tag it to a meal or place — tagged photos then appear
-  under that meal/place.
+  mark it a favorite, tag it to a meal or place, or add freeform **tags** like
+  "Outfit" — tagged photos appear under that meal/place, and a favorite (or your
+  latest) photo becomes the trip's cover and the day-card heroes.
+- **Browse by tag** (`app/collections.tsx`) — pick a tag or Favorites and see
+  matching photos pulled from every trip.
 - **Receipt capture** (`app/trip/[id]/receipt.tsx`) — snap or upload a receipt;
   the fields (merchant, amount, converted USD, category, day) are prefilled and
   editable; saving adds a live expense that moves the wallet total.

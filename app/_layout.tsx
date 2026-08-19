@@ -21,6 +21,7 @@ export default function RootLayout() {
             }}
           >
             <Stack.Screen name="index" />
+            <Stack.Screen name="collections" />
             <Stack.Screen name="trip/[id]/index" />
             <Stack.Screen name="trip/[id]/day/[day]" />
             <Stack.Screen name="trip/[id]/receipt" options={{ presentation: 'modal' }} />

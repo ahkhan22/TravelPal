@@ -14,7 +14,7 @@ export default function PhotoScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { id, photoId } = useLocalSearchParams<{ id: string; photoId: string }>();
-  const { getTrip, getPhoto, updatePhoto, deletePhoto } = useStore();
+  const { getTrip, getPhoto, getAllPhotos, updatePhoto, deletePhoto } = useStore();
 
   const photo = getPhoto(photoId);
   const trip = getTrip(id);
@@ -25,6 +25,20 @@ export default function PhotoScreen() {
   const [tag, setTag] = useState<Tag>(
     photo?.mealId ? { kind: 'meal', id: photo.mealId } : photo?.placeId ? { kind: 'place', id: photo.placeId } : { kind: 'none' },
   );
+  const [labels, setLabels] = useState<string[]>(photo?.labels ?? []);
+  const [newLabel, setNewLabel] = useState('');
+
+  const knownLabels = Array.from(new Set(getAllPhotos().flatMap((p) => p.labels ?? []))).sort();
+  const suggestions = knownLabels.filter((l) => !labels.some((x) => x.toLowerCase() === l.toLowerCase()));
+
+  function addLabel(raw: string) {
+    const value = raw.trim();
+    if (!value) return;
+    if (!labels.some((x) => x.toLowerCase() === value.toLowerCase())) {
+      setLabels((prev) => [...prev, value]);
+    }
+    setNewLabel('');
+  }
 
   if (!photo || !trip || !day) {
     return (
@@ -40,6 +54,7 @@ export default function PhotoScreen() {
       favorite,
       mealId: tag.kind === 'meal' ? tag.id : undefined,
       placeId: tag.kind === 'place' ? tag.id : undefined,
+      labels: labels.length ? labels : undefined,
     });
     router.back();
   }
@@ -122,6 +137,45 @@ export default function PhotoScreen() {
           </>
         )}
 
+        <Label text="Tags — search across every trip" colors={colors} fonts={fonts} />
+        {labels.length > 0 && (
+          <View style={styles.chips}>
+            {labels.map((l) => (
+              <Pressable
+                key={l}
+                onPress={() => setLabels((prev) => prev.filter((x) => x !== l))}
+                style={[styles.tagChip, { backgroundColor: colors.brick }]}
+              >
+                <Text style={{ color: '#fff', fontSize: 12.5 }}>{l}</Text>
+                <Ionicons name="close" size={13} color="#fff" />
+              </Pressable>
+            ))}
+          </View>
+        )}
+        <View style={styles.tagInputRow}>
+          <TextInput
+            value={newLabel}
+            onChangeText={setNewLabel}
+            onSubmitEditing={() => addLabel(newLabel)}
+            placeholder="Add a tag, e.g. Outfit"
+            placeholderTextColor={colors.inkSoft}
+            returnKeyType="done"
+            style={[styles.input, { flex: 1, color: colors.ink, borderColor: colors.line }]}
+          />
+          <Pressable onPress={() => addLabel(newLabel)} style={[styles.addTagBtn, { borderColor: colors.teal }]}>
+            <Text style={{ color: colors.teal, fontFamily: fonts.mono, fontSize: 13 }}>Add</Text>
+          </Pressable>
+        </View>
+        {suggestions.length > 0 && (
+          <View style={styles.chips}>
+            {suggestions.map((l) => (
+              <Pressable key={l} onPress={() => addLabel(l)} style={[styles.chip, { borderColor: colors.line }]}>
+                <Text style={{ color: colors.inkSoft, fontSize: 12 }}>+ {l}</Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
+
         <Pressable onPress={save} style={[styles.btn, styles.btnPrimary]}>
           <Text style={styles.btnPrimaryText}>Save</Text>
         </Pressable>
@@ -167,6 +221,9 @@ const styles = StyleSheet.create({
   subLabel: { fontSize: 9.5, letterSpacing: 1, marginTop: 2 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7 },
+  tagChip: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingLeft: 13, paddingRight: 10, paddingVertical: 7 },
+  tagInputRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  addTagBtn: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 11 },
   btn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 13, borderRadius: 11, marginTop: 6 },
   btnPrimary: { backgroundColor: '#0F5D63' },
   btnPrimaryText: { color: '#fff', fontWeight: '600', fontSize: 15 },

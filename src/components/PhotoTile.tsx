@@ -1,14 +1,15 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Image, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { gradient } from '../gradients';
 import { fonts, radius } from '../theme';
 
-// A stand-in for a real trip photo: a colour-ramp tile with a caption and an
-// optional corner tag. When real images land, swap the LinearGradient for an
-// <Image> and keep the same overlay chrome.
+// A trip photo tile. Given a `uri` it shows the real image; otherwise it falls
+// back to a colour-ramp placeholder. Either way it keeps the same caption and
+// corner-tag chrome, so real and sample photos read as one system.
 
 interface Props {
-  gradientIndex: number;
+  gradientIndex?: number;
+  uri?: string;
   caption?: string;
   tag?: string;
   favorite?: boolean;
@@ -18,7 +19,8 @@ interface Props {
 }
 
 export function PhotoTile({
-  gradientIndex,
+  gradientIndex = 0,
+  uri,
   caption,
   tag,
   favorite,
@@ -29,12 +31,16 @@ export function PhotoTile({
   const colors = gradient(gradientIndex);
   return (
     <View style={[styles.wrap, { aspectRatio }, style]}>
-      <LinearGradient
-        colors={colors as unknown as [string, string, ...string[]]}
-        start={{ x: 0.1, y: 0 }}
-        end={{ x: 0.9, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
+      {uri ? (
+        <Image source={{ uri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+      ) : (
+        <LinearGradient
+          colors={colors as unknown as [string, string, ...string[]]}
+          start={{ x: 0.1, y: 0 }}
+          end={{ x: 0.9, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+      )}
       <LinearGradient
         colors={['transparent', 'rgba(0,0,0,0.55)']}
         start={{ x: 0, y: 0.35 }}

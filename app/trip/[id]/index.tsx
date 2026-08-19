@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DayCard } from '../../../src/components/DayCard';
 import { Wallet } from '../../../src/components/Wallet';
@@ -17,7 +17,7 @@ export default function TripSummaryScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { getTrip, getExpenses } = useStore();
+  const { getTrip, getExpenses, getPhotos } = useStore();
   const [exporting, setExporting] = useState(false);
 
   const trip = getTrip(id);
@@ -30,6 +30,8 @@ export default function TripSummaryScreen() {
   }
 
   const expenses = getExpenses(trip.id);
+  const photos = getPhotos(trip.id);
+  const coverPhoto = photos.find((p) => p.favorite) ?? photos[photos.length - 1];
   const cover = gradient(trip.coverGradient);
   const placesCount = trip.days.reduce((n, d) => n + d.places.length, 0);
   const scanned = expenses.filter((e) => e.source === 'scan').length;
@@ -52,12 +54,16 @@ export default function TripSummaryScreen() {
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 96 }}>
         {/* Cover */}
         <View style={styles.cover}>
-          <LinearGradient
-            colors={cover as unknown as [string, string, ...string[]]}
-            start={{ x: 0.15, y: 0 }}
-            end={{ x: 0.85, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
+          {coverPhoto ? (
+            <Image source={{ uri: coverPhoto.uri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          ) : (
+            <LinearGradient
+              colors={cover as unknown as [string, string, ...string[]]}
+              start={{ x: 0.15, y: 0 }}
+              end={{ x: 0.85, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+          )}
           <LinearGradient
             colors={['rgba(10,14,15,0.05)', 'rgba(10,14,15,0.72)']}
             start={{ x: 0, y: 0.3 }}
@@ -109,6 +115,7 @@ export default function TripSummaryScreen() {
                 key={day.index}
                 day={day}
                 spend={daySpend(expenses, day.index)}
+                photos={photos.filter((p) => p.dayIndex === day.index)}
                 onPress={() => router.push(`/trip/${trip.id}/day/${day.index}`)}
               />
             ))}

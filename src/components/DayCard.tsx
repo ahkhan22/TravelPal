@@ -1,20 +1,27 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { usd } from '../format';
 import { useTheme } from '../theme';
-import type { Day } from '../types';
+import type { Day, Photo } from '../types';
 import { PhotoTile } from './PhotoTile';
 
 // One day, condensed for the shareable digest: hero photo(s), what I ate, what
 // I saw, and the day's on-the-ground spend. Tapping opens the full day page.
+// If the user has added their own photos to the day, those (favorites first)
+// become the heroes; otherwise the sample gradient heroes are shown.
 
 interface Props {
   day: Day;
   spend: number;
+  photos?: Photo[];
   onPress: () => void;
 }
 
-export function DayCard({ day, spend, onPress }: Props) {
+export function DayCard({ day, spend, photos = [], onPress }: Props) {
   const { colors, fonts } = useTheme();
+  const userHeroes = [...photos].sort((a, b) => Number(!!b.favorite) - Number(!!a.favorite)).slice(0, 2);
+  const heroes = userHeroes.length
+    ? userHeroes.map((p) => ({ uri: p.uri, caption: p.caption, favorite: p.favorite, gradient: 0 }))
+    : day.heroes.slice(0, 2).map((h) => ({ uri: undefined as string | undefined, ...h }));
   return (
     <Pressable
       onPress={onPress}
@@ -27,14 +34,15 @@ export function DayCard({ day, spend, onPress }: Props) {
       ]}
     >
       <View style={styles.heroes}>
-        {day.heroes.slice(0, 2).map((h, i) => (
+        {heroes.map((h, i) => (
           <PhotoTile
             key={i}
+            uri={h.uri}
             gradientIndex={h.gradient}
             caption={h.caption}
             favorite={h.favorite}
             tag={`Day ${day.index}`}
-            aspectRatio={day.heroes.length > 1 ? 16 / 10 : 4 / 3}
+            aspectRatio={heroes.length > 1 ? 16 / 10 : 4 / 3}
             captionSize={11.5}
             style={styles.hero}
           />
