@@ -14,7 +14,8 @@ export default function PhotoScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { id, photoId } = useLocalSearchParams<{ id: string; photoId: string }>();
-  const { getTrip, getPhoto, getAllPhotos, getPhotos, getMeals, getPlaces, updatePhoto, deletePhoto } = useStore();
+  const { getTrip, getPhoto, getAllPhotos, getPhotos, getMeals, getPlaces, updatePhoto, setTripCover, deletePhoto } =
+    useStore();
 
   const photo = getPhoto(photoId);
   const trip = getTrip(id);
@@ -23,6 +24,7 @@ export default function PhotoScreen() {
   const [caption, setCaption] = useState(photo?.caption ?? '');
   const [favorite, setFavorite] = useState(!!photo?.favorite);
   const [featured, setFeatured] = useState(!!photo?.featured);
+  const [cover, setCoverState] = useState(!!photo?.cover);
   const [tag, setTag] = useState<Tag>(
     photo?.mealId ? { kind: 'meal', id: photo.mealId } : photo?.placeId ? { kind: 'place', id: photo.placeId } : { kind: 'none' },
   );
@@ -61,6 +63,12 @@ export default function PhotoScreen() {
       }
     }
     setFeatured((f) => !f);
+  }
+
+  function toggleCover() {
+    const next = !cover;
+    setCoverState(next);
+    setTripCover(photo!.id, next); // applies immediately; clears any other cover
   }
 
   function save() {
@@ -122,10 +130,29 @@ export default function PhotoScreen() {
           <Pressable onPress={toggleFeatured} style={styles.favRow}>
             <Ionicons name={featured ? 'star' : 'star-outline'} size={20} color={featured ? colors.saffron : colors.inkSoft} />
             <Text style={{ color: featured ? colors.saffron : colors.inkSoft, fontFamily: fonts.mono, fontSize: 12.5 }}>
-              {featured ? 'Featured in recap' : 'Feature in recap'}
+              {featured ? 'Featured this day' : 'Feature this day'}
             </Text>
           </Pressable>
         </View>
+
+        <Pressable
+          onPress={toggleCover}
+          style={[
+            styles.coverRow,
+            { borderColor: cover ? colors.teal : colors.line, backgroundColor: cover ? colors.surfaceAlt : 'transparent' },
+          ]}
+        >
+          <Ionicons name={cover ? 'image' : 'image-outline'} size={20} color={cover ? colors.teal : colors.inkSoft} />
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: colors.ink, fontSize: 14, fontWeight: '600' }}>
+              {cover ? 'Trip cover photo' : 'Set as trip cover'}
+            </Text>
+            <Text style={{ color: colors.inkSoft, fontFamily: fonts.mono, fontSize: 10.5, marginTop: 2 }}>
+              The one photo shown on the trip card &amp; recap header
+            </Text>
+          </View>
+          {cover ? <Ionicons name="checkmark-circle" size={20} color={colors.teal} /> : null}
+        </Pressable>
 
         <Label text="Caption" colors={colors} fonts={fonts} />
         <TextInput
@@ -241,6 +268,7 @@ const styles = StyleSheet.create({
   x: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   image: { width: '100%', height: 300, borderRadius: 12, borderWidth: 1 },
   favRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  coverRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderRadius: 12, padding: 14 },
   input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15 },
   subLabel: { fontSize: 9.5, letterSpacing: 1, marginTop: 2 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },

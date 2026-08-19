@@ -5,6 +5,7 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DayCard } from '../../../src/components/DayCard';
 import { Wallet } from '../../../src/components/Wallet';
+import { pickCoverPhoto } from '../../../src/cover';
 import { daySpend, tripTotal, usd } from '../../../src/format';
 import { gradient } from '../../../src/gradients';
 import { useStore } from '../../../src/store';
@@ -28,7 +29,7 @@ export default function TripSummaryScreen() {
 
   const expenses = getExpenses(trip.id);
   const photos = getPhotos(trip.id);
-  const coverPhoto = photos.find((p) => p.favorite) ?? photos[photos.length - 1];
+  const coverPhoto = pickCoverPhoto(photos);
   const cover = gradient(trip.coverGradient);
   const placesCount = trip.days.reduce((n, d) => n + getPlaces(trip.id, d.index).length, 0);
   const scanned = expenses.filter((e) => e.source === 'scan').length;

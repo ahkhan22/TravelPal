@@ -28,6 +28,7 @@ type Action =
   | { type: 'ADD_EXPENSE'; expense: Expense }
   | { type: 'ADD_PHOTOS'; photos: Photo[] }
   | { type: 'UPDATE_PHOTO'; id: string; patch: Partial<Photo> }
+  | { type: 'SET_COVER'; tripId: string; id: string; on: boolean }
   | { type: 'DELETE_PHOTO'; id: string }
   | { type: 'ADD_MEAL'; meal: UserMeal }
   | { type: 'DELETE_MEAL'; id: string }
@@ -60,6 +61,16 @@ function reducer(state: State, action: Action): State {
       return { ...state, userPhotos: [...state.userPhotos, ...action.photos] };
     case 'UPDATE_PHOTO':
       return { ...state, userPhotos: state.userPhotos.map((p) => (p.id === action.id ? { ...p, ...action.patch } : p)) };
+    case 'SET_COVER':
+      // At most one cover per trip: setting one clears the others in that trip.
+      return {
+        ...state,
+        userPhotos: state.userPhotos.map((p) => {
+          if (p.tripId !== action.tripId) return p;
+          if (action.on) return { ...p, cover: p.id === action.id };
+          return p.id === action.id ? { ...p, cover: false } : p;
+        }),
+      };
     case 'DELETE_PHOTO':
       return { ...state, userPhotos: state.userPhotos.filter((p) => p.id !== action.id) };
     case 'ADD_MEAL':
@@ -87,6 +98,7 @@ interface StoreValue {
   getPhoto: (id: string) => Photo | undefined;
   addPhotos: (photos: Omit<Photo, 'id'>[]) => void;
   updatePhoto: (id: string, patch: Partial<Photo>) => void;
+  setTripCover: (photoId: string, on: boolean) => void;
   deletePhoto: (id: string) => void;
   getMeals: (tripId: string, dayIndex: number) => DayMeal[];
   getPlaces: (tripId: string, dayIndex: number) => DayPlace[];
@@ -160,6 +172,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       getPhoto: (id) => state.userPhotos.find((p) => p.id === id),
       addPhotos: (photos) => dispatch({ type: 'ADD_PHOTOS', photos: photos.map((p) => ({ ...p, id: makeId('pho') })) }),
       updatePhoto: (id, patch) => dispatch({ type: 'UPDATE_PHOTO', id, patch }),
+      setTripCover: (photoId, on) => {
+        const p = state.userPhotos.find((x) => x.id === photoId);
+        if (p) dispatch({ type: 'SET_COVER', tripId: p.tripId, id: photoId, on });
+      },
       deletePhoto: (id) => dispatch({ type: 'DELETE_PHOTO', id }),
       getMeals: (tripId, dayIndex) => {
         const seed: DayMeal[] = (findDay(tripId, dayIndex)?.meals ?? []).map((m) => ({

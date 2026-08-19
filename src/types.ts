@@ -91,8 +91,10 @@ export interface Photo {
   mealId?: string;
   placeId?: string;
   favorite?: boolean;
-  /** Chosen to appear in the recap (cover/day heroes). Max 2 per day. */
+  /** Highlighted on this day's recap card and in the PDF. Max 2 per day. */
   featured?: boolean;
+  /** The single cover photo for the whole trip. At most one per trip. */
+  cover?: boolean;
   /** Freeform, cross-trip tags (e.g. "Outfit", "Sunset") for browsing/search. */
   labels?: string[];
 }

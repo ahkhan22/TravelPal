@@ -21,9 +21,9 @@ Pakistan) so every screen shows real content:
   per day (`app/trip/[id]/event.tsx`), and remove ones you added. **Add photos**
   imports from the camera roll; tap a photo to open the editor
   (`app/trip/[id]/photo/[photoId].tsx`) to caption it, mark it a favorite,
-  **feature** it in the recap (max 2/day), tag it to a meal or place, or add
-  freeform **tags** like "Outfit". Featured (else favorite) photos become the
-  trip cover and day-card heroes.
+  **feature** it on that day's recap card (max 2/day), set it as the single
+  **trip cover** (`src/cover.ts` picks cover → featured → favorite → latest),
+  tag it to a meal or place, or add freeform **tags** like "Outfit".
 - **Share options** (`app/trip/[id]/share.tsx`) — toggle whether the PDF includes
   photos and/or spending before exporting.
 - **Browse by tag** (`app/collections.tsx`) — pick a tag or Favorites and see

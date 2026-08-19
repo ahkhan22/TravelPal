@@ -3,6 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { pickCoverPhoto } from '../src/cover';
 import { tripTotal, usd } from '../src/format';
 import { gradient } from '../src/gradients';
 import { useStore } from '../src/store';
@@ -55,8 +56,7 @@ export default function TripsScreen() {
       {trips.map((trip) => {
         const expenses = getExpenses(trip.id);
         const cover = gradient(trip.coverGradient);
-        const tripPhotos = getPhotos(trip.id);
-        const coverPhoto = tripPhotos.find((p) => p.favorite) ?? tripPhotos[tripPhotos.length - 1];
+        const coverPhoto = pickCoverPhoto(getPhotos(trip.id));
         return (
           <Pressable
             key={trip.id}

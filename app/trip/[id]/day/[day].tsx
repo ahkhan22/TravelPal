@@ -189,6 +189,11 @@ export default function DayScreen() {
             <Pressable key={p.id} onPress={() => openPhoto(p.id)} style={styles.galleryItem}>
               <Image source={{ uri: p.uri }} style={[styles.userThumb, { borderColor: colors.line }]} />
               <View style={styles.badges}>
+                {p.cover ? (
+                  <View style={[styles.badge, { backgroundColor: 'rgba(15,93,99,0.92)' }]}>
+                    <Ionicons name="image" size={10} color="#fff" />
+                  </View>
+                ) : null}
                 {p.favorite ? (
                   <View style={[styles.badge, { backgroundColor: 'rgba(169,67,42,0.9)' }]}>
                     <Ionicons name="heart" size={10} color="#fff" />

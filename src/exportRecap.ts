@@ -2,6 +2,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Alert } from 'react-native';
+import { pickCoverPhoto } from './cover';
 import { buildRecapHtml, type RecapHero, type RecapMedia } from './recapHtml';
 import type { Expense, Photo, Trip } from './types';
 
@@ -31,8 +32,7 @@ async function toDataUri(uri: string): Promise<string | null> {
 
 // Featured photos win; favorites are the fallback. Max 2 per day / for the cover.
 async function buildMedia(trip: Trip, photos: Photo[]): Promise<Pick<RecapMedia, 'cover' | 'heroesByDay'>> {
-  const coverPhoto =
-    photos.find((p) => p.featured) ?? photos.find((p) => p.favorite) ?? photos[photos.length - 1];
+  const coverPhoto = pickCoverPhoto(photos);
   const cover = coverPhoto ? await toDataUri(coverPhoto.uri) : null;
 
   const heroesByDay: Record<number, RecapHero[]> = {};
