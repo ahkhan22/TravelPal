@@ -24,6 +24,7 @@ export default function RootLayout() {
             <Stack.Screen name="trip/[id]/index" />
             <Stack.Screen name="trip/[id]/day/[day]" />
             <Stack.Screen name="trip/[id]/receipt" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="trip/[id]/photo/[photoId]" options={{ presentation: 'modal' }} />
           </Stack>
         </StoreProvider>
       </SafeAreaProvider>

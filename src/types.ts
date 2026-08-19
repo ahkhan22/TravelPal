@@ -80,6 +80,19 @@ export interface Day {
   photoCount: number;
 }
 
+// A user-imported photo, attached to a day and optionally tagged to a meal or
+// place. Tagging is exclusive: a photo belongs to at most one meal or one place.
+export interface Photo {
+  id: string;
+  tripId: string;
+  dayIndex: number;
+  uri: string;
+  caption?: string;
+  mealId?: string;
+  placeId?: string;
+  favorite?: boolean;
+}
+
 export interface Trip {
   id: string;
   title: string;

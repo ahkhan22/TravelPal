@@ -1,11 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
-import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usd } from '../../../src/format';
+import { persistLocalCopy } from '../../../src/media';
 import { useStore } from '../../../src/store';
 import { useTheme } from '../../../src/theme';
 import type { ExpenseCategory } from '../../../src/types';
@@ -13,22 +13,6 @@ import type { ExpenseCategory } from '../../../src/types';
 const CATEGORIES: ExpenseCategory[] = ['Food', 'Transport', 'Shopping', 'Activities', 'Hotel', 'Other'];
 const PKR_PER_USD = 281;
 type Currency = 'PKR' | 'USD';
-
-// Copies a captured image into the app's document directory so it survives
-// restarts (the picker's original URI lives in a cache that can be cleared).
-// Falls back to the original URI if the copy fails.
-async function persistPhoto(uri: string): Promise<string> {
-  try {
-    const dir = FileSystem.documentDirectory;
-    if (!dir) return uri;
-    const ext = (uri.split('.').pop() || 'jpg').split('?')[0];
-    const dest = `${dir}receipt-${Date.now()}.${ext}`;
-    await FileSystem.copyAsync({ from: uri, to: dest });
-    return dest;
-  } catch {
-    return uri;
-  }
-}
 
 export default function ReceiptScreen() {
   const { colors, fonts } = useTheme();
@@ -76,7 +60,7 @@ export default function ReceiptScreen() {
     if (!trip || !canSave) return;
     setSaving(true);
     try {
-      const storedUri = imageUri ? await persistPhoto(imageUri) : undefined;
+      const storedUri = imageUri ? await persistLocalCopy(imageUri, 'receipt') : undefined;
       addExpense({
         tripId: trip.id,
         dayIndex,

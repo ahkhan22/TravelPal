@@ -16,8 +16,11 @@ Pakistan) so every screen shows real content:
 - **Trip recap** (`app/trip/[id]/index.tsx`) — the shareable digest: cover, stats,
   a day-by-day card list, and the **Trip Wallet** (live category + per-day spend).
 - **Day page** (`app/trip/[id]/day/[day].tsx`) — the drill-down: the day's spend
-  with per-expense source (`scan` / `email` / `card`), meals with itemized
-  receipts, places, and the photo roll.
+  (tap a receipt thumbnail to view it full-screen), meals with itemized receipts,
+  places, and the photo roll. **Add photos** imports from the camera roll; tap a
+  photo to open the editor (`app/trip/[id]/photo/[photoId].tsx`) to caption it,
+  mark it a favorite, or tag it to a meal or place — tagged photos then appear
+  under that meal/place.
 - **Receipt capture** (`app/trip/[id]/receipt.tsx`) — snap or upload a receipt;
   the fields (merchant, amount, converted USD, category, day) are prefilled and
   editable; saving adds a live expense that moves the wallet total.
@@ -59,6 +62,7 @@ Then press `i` (iOS simulator), `a` (Android emulator), or scan the QR with the
 ## Not built yet (next up)
 
 - New-trip creation and trip editing
-- Real photo import + tagging photos to meals/places
-- Email receipt ingestion and OCR on scanned receipts
+- Email receipt ingestion, and OCR / vision to auto-read a receipt's merchant,
+  line items and category (needs a dev build or a cloud vision call — not
+  possible inside Expo Go)
 - Cloud sync (local persistence is in place)
