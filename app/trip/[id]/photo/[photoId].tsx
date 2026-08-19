@@ -14,7 +14,7 @@ export default function PhotoScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { id, photoId } = useLocalSearchParams<{ id: string; photoId: string }>();
-  const { getTrip, getPhoto, getAllPhotos, updatePhoto, deletePhoto } = useStore();
+  const { getTrip, getPhoto, getAllPhotos, getPhotos, getMeals, getPlaces, updatePhoto, deletePhoto } = useStore();
 
   const photo = getPhoto(photoId);
   const trip = getTrip(id);
@@ -22,6 +22,7 @@ export default function PhotoScreen() {
 
   const [caption, setCaption] = useState(photo?.caption ?? '');
   const [favorite, setFavorite] = useState(!!photo?.favorite);
+  const [featured, setFeatured] = useState(!!photo?.featured);
   const [tag, setTag] = useState<Tag>(
     photo?.mealId ? { kind: 'meal', id: photo.mealId } : photo?.placeId ? { kind: 'place', id: photo.placeId } : { kind: 'none' },
   );
@@ -48,10 +49,25 @@ export default function PhotoScreen() {
     );
   }
 
+  const meals = getMeals(id, day.index);
+  const places = getPlaces(id, day.index);
+
+  function toggleFeatured() {
+    if (!featured) {
+      const count = getPhotos(id).filter((p) => p.dayIndex === day!.index && p.featured && p.id !== photo!.id).length;
+      if (count >= 2) {
+        Alert.alert('Up to 2 per day', 'You can feature up to 2 photos per day in the recap. Unfeature another first.');
+        return;
+      }
+    }
+    setFeatured((f) => !f);
+  }
+
   function save() {
     updatePhoto(photo!.id, {
       caption: caption.trim() || undefined,
       favorite,
+      featured,
       mealId: tag.kind === 'meal' ? tag.id : undefined,
       placeId: tag.kind === 'place' ? tag.id : undefined,
       labels: labels.length ? labels : undefined,
@@ -96,12 +112,20 @@ export default function PhotoScreen() {
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 30, gap: 18 }} keyboardShouldPersistTaps="handled">
         <Image source={{ uri: photo.uri }} style={[styles.image, { borderColor: colors.line }]} resizeMode="cover" />
 
-        <Pressable onPress={() => setFavorite((f) => !f)} style={styles.favRow}>
-          <Ionicons name={favorite ? 'heart' : 'heart-outline'} size={20} color={favorite ? colors.brick : colors.inkSoft} />
-          <Text style={{ color: favorite ? colors.brick : colors.inkSoft, fontFamily: fonts.mono, fontSize: 12.5 }}>
-            {favorite ? 'Favorite photo' : 'Mark as favorite'}
-          </Text>
-        </Pressable>
+        <View style={{ flexDirection: 'row', gap: 20, flexWrap: 'wrap' }}>
+          <Pressable onPress={() => setFavorite((f) => !f)} style={styles.favRow}>
+            <Ionicons name={favorite ? 'heart' : 'heart-outline'} size={20} color={favorite ? colors.brick : colors.inkSoft} />
+            <Text style={{ color: favorite ? colors.brick : colors.inkSoft, fontFamily: fonts.mono, fontSize: 12.5 }}>
+              {favorite ? 'Favorite' : 'Favorite'}
+            </Text>
+          </Pressable>
+          <Pressable onPress={toggleFeatured} style={styles.favRow}>
+            <Ionicons name={featured ? 'star' : 'star-outline'} size={20} color={featured ? colors.saffron : colors.inkSoft} />
+            <Text style={{ color: featured ? colors.saffron : colors.inkSoft, fontFamily: fonts.mono, fontSize: 12.5 }}>
+              {featured ? 'Featured in recap' : 'Feature in recap'}
+            </Text>
+          </Pressable>
+        </View>
 
         <Label text="Caption" colors={colors} fonts={fonts} />
         <TextInput
@@ -115,22 +139,22 @@ export default function PhotoScreen() {
         <Label text={`Tag to something on Day ${day.index}`} colors={colors} fonts={fonts} />
         <View style={styles.chips}>{chip('None', tag.kind === 'none', () => setTag({ kind: 'none' }), colors.inkSoft)}</View>
 
-        {day.meals.length > 0 && (
+        {meals.length > 0 && (
           <>
             <Text style={[styles.subLabel, { color: colors.inkSoft, fontFamily: fonts.mono }]}>ATE</Text>
             <View style={styles.chips}>
-              {day.meals.map((m) =>
+              {meals.map((m) =>
                 chip(m.name, tag.kind === 'meal' && tag.id === m.id, () => setTag({ kind: 'meal', id: m.id }), colors.saffron),
               )}
             </View>
           </>
         )}
 
-        {day.places.length > 0 && (
+        {places.length > 0 && (
           <>
             <Text style={[styles.subLabel, { color: colors.inkSoft, fontFamily: fonts.mono }]}>SAW</Text>
             <View style={styles.chips}>
-              {day.places.map((p) =>
+              {places.map((p) =>
                 chip(p.name, tag.kind === 'place' && tag.id === p.id, () => setTag({ kind: 'place', id: p.id }), colors.teal),
               )}
             </View>

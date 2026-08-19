@@ -17,6 +17,9 @@ export interface RecapHero {
 export interface RecapMedia {
   cover?: string; // data URI
   heroesByDay?: Record<number, RecapHero[]>;
+  includeSpend?: boolean; // default true
+  ateByDay?: Record<number, string[]>;
+  sawByDay?: Record<number, string[]>;
 }
 
 function esc(s: string): string {
@@ -51,7 +54,16 @@ function imgPhoto(uri: string, caption?: string, tag?: string): string {
   </div>`;
 }
 
-function dayBlock(day: Day, spend: number, heroPhotos?: RecapHero[]): string {
+interface DayOpts {
+  spend: number;
+  heroPhotos?: RecapHero[];
+  ateNames?: string[];
+  sawNames?: string[];
+  includeSpend: boolean;
+}
+
+function dayBlock(day: Day, opts: DayOpts): string {
+  const { spend, heroPhotos, ateNames, sawNames, includeSpend } = opts;
   const heroList =
     heroPhotos && heroPhotos.length
       ? heroPhotos.map((h) => imgPhoto(h.uri, h.caption, h.favorite ? 'favorite' : `Day ${day.index}`)).join('')
@@ -62,16 +74,17 @@ function dayBlock(day: Day, spend: number, heroPhotos?: RecapHero[]): string {
   const count = heroPhotos?.length ?? day.heroes.length;
   const heroes = `<div class="heroes ${count > 1 ? 'two' : ''}">${heroList}</div>`;
 
-  const ate = day.meals
-    .map((m) => `<li><span>${rich(m.name)}</span><span class="c">${esc(m.receipt.usd)}</span></li>`)
-    .join('');
-  const saw = day.places.map((p) => `<li><span>${esc(p.name)}</span></li>`).join('');
+  const ateList = ateNames ?? day.meals.map((m) => m.name);
+  const sawList = sawNames ?? day.places.map((p) => p.name);
+  const ate = ateList.map((name) => `<li><span>${rich(name)}</span></li>`).join('');
+  const saw = sawList.map((name) => `<li><span>${esc(name)}</span></li>`).join('');
+  const dateLine = includeSpend ? `${esc(day.dateLabel)} · ${esc(usd(spend))} spent` : esc(day.dateLabel);
 
   return `<div class="daycard">
     ${heroes}
     <div class="dc-body">
       <div class="dc-top"><span class="dc-day">DAY ${day.index}</span><h3>${esc(day.title)}</h3></div>
-      <div class="dc-date">${esc(day.dateLabel)} · ${esc(usd(spend))} spent</div>
+      <div class="dc-date">${dateLine}</div>
       <div class="mini"><span class="lab">ATE</span><ul>${ate || '<li><span>—</span></li>'}</ul></div>
       <div class="mini"><span class="lab">SAW</span><ul>${saw || '<li><span>—</span></li>'}</ul></div>
     </div>
@@ -79,13 +92,24 @@ function dayBlock(day: Day, spend: number, heroPhotos?: RecapHero[]): string {
 }
 
 export function buildRecapHtml(trip: Trip, expenses: Expense[], media: RecapMedia = {}): string {
+  const includeSpend = media.includeSpend ?? true;
   const total = tripTotal(expenses);
   const cats = categoryTotals(expenses);
-  const placesCount = trip.days.reduce((n, d) => n + d.places.length, 0);
+  const placesCount = trip.days.reduce((n, d) => n + (media.sawByDay?.[d.index]?.length ?? d.places.length), 0);
   const scanned = expenses.filter((e) => e.source === 'scan').length;
   const emailed = expenses.filter((e) => e.source === 'email').length;
 
-  const days = trip.days.map((d) => dayBlock(d, daySpend(expenses, d.index), media.heroesByDay?.[d.index])).join('');
+  const days = trip.days
+    .map((d) =>
+      dayBlock(d, {
+        spend: daySpend(expenses, d.index),
+        heroPhotos: media.heroesByDay?.[d.index],
+        ateNames: media.ateByDay?.[d.index],
+        sawNames: media.sawByDay?.[d.index],
+        includeSpend,
+      }),
+    )
+    .join('');
   const coverStyle = media.cover
     ? `background-image:url('${media.cover}');`
     : `background:${cssGradient(trip.coverGradient, 150)};`;
@@ -171,20 +195,24 @@ export function buildRecapHtml(trip: Trip, expenses: Expense[], media: RecapMedi
   <div class="stats">
     <div class="stat"><div class="n">${trip.days.length}</div><div class="l">Days</div></div>
     <div class="stat"><div class="n">${placesCount}</div><div class="l">Places</div></div>
-    <div class="stat"><div class="n">${esc(usd(total))}</div><div class="l">Spend</div></div>
+    ${includeSpend ? `<div class="stat"><div class="n">${esc(usd(total))}</div><div class="l">Spend</div></div>` : ''}
     <div class="stat"><div class="n">${trip.photosKept}</div><div class="l">Photos</div></div>
   </div>
 
   <h2 class="sec"><span class="idx">01</span>The trip, day by day</h2>
   ${days}
 
-  <h2 class="sec" style="margin-top:22px"><span class="idx">02</span>Trip wallet</h2>
+  ${
+    includeSpend
+      ? `<h2 class="sec" style="margin-top:22px"><span class="idx">02</span>Trip wallet</h2>
   <div class="wallet">
     <div class="w-total">${esc(usd(total))}</div>
     <div class="w-sub">${scanned} receipts scanned · ${emailed} from email</div>
     ${catRows}
-  </div>
+  </div>`
+      : ''
+  }
 
-  <div class="foot">✦ Made with TravelPal — everywhere I went, ate &amp; spent, on one page.</div>
+  <div class="foot">✦ Made with TravelPal — everywhere I went${includeSpend ? ', ate &amp; spent' : ' &amp; ate'}, on one page.</div>
 </body></html>`;
 }

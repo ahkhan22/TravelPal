@@ -91,8 +91,49 @@ export interface Photo {
   mealId?: string;
   placeId?: string;
   favorite?: boolean;
+  /** Chosen to appear in the recap (cover/day heroes). Max 2 per day. */
+  featured?: boolean;
   /** Freeform, cross-trip tags (e.g. "Outfit", "Sunset") for browsing/search. */
   labels?: string[];
+}
+
+// User-created day events, persisted in the store (the seed trip's meals/places
+// live on the Trip object; these are what the user adds on top).
+export interface UserMeal {
+  id: string;
+  tripId: string;
+  dayIndex: number;
+  name: string;
+  location?: string;
+  dish?: string;
+  rating?: number;
+}
+
+export interface UserPlace {
+  id: string;
+  tripId: string;
+  dayIndex: number;
+  name: string;
+  note?: string;
+}
+
+// Merged display shapes (seed + user) returned by the store selectors.
+export interface DayMeal {
+  id: string;
+  name: string;
+  location?: string;
+  dish?: string;
+  rating?: number;
+  receipt?: Receipt;
+  editable: boolean;
+}
+
+export interface DayPlace {
+  id: string;
+  name: string;
+  note?: string;
+  gradient?: number;
+  editable: boolean;
 }
 
 export interface Trip {

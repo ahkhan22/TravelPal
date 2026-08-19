@@ -13,15 +13,21 @@ interface Props {
   day: Day;
   spend: number;
   photos?: Photo[];
+  mealNames?: string[];
+  placeNames?: string[];
   onPress: () => void;
 }
 
-export function DayCard({ day, spend, photos = [], onPress }: Props) {
+export function DayCard({ day, spend, photos = [], mealNames, placeNames, onPress }: Props) {
   const { colors, fonts } = useTheme();
-  const userHeroes = [...photos].sort((a, b) => Number(!!b.favorite) - Number(!!a.favorite)).slice(0, 2);
-  const heroes = userHeroes.length
-    ? userHeroes.map((p) => ({ uri: p.uri, caption: p.caption, favorite: p.favorite, gradient: 0 }))
+  const featured = photos.filter((p) => p.featured);
+  const favorites = photos.filter((p) => p.favorite);
+  const chosen = (featured.length ? featured : favorites).slice(0, 2);
+  const heroes = chosen.length
+    ? chosen.map((p) => ({ uri: p.uri, caption: p.caption, favorite: p.favorite, gradient: 0 }))
     : day.heroes.slice(0, 2).map((h) => ({ uri: undefined as string | undefined, ...h }));
+  const ate = (mealNames ?? day.meals.map((m) => m.name)).join(', ');
+  const saw = (placeNames ?? day.places.map((p) => p.name)).join(', ');
   return (
     <Pressable
       onPress={onPress}
@@ -63,10 +69,10 @@ export function DayCard({ day, spend, photos = [], onPress }: Props) {
         </Text>
 
         <Row label="ATE" colors={colors} fonts={fonts}>
-          {day.meals.map((m) => m.name).join(', ')}
+          {ate || '—'}
         </Row>
         <Row label="SAW" colors={colors} fonts={fonts}>
-          {day.places.map((p) => p.name).join(', ')}
+          {saw || '—'}
         </Row>
 
         <Text style={[styles.open, { color: colors.teal, fontFamily: fonts.mono }]}>

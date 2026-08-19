@@ -1,12 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DayCard } from '../../../src/components/DayCard';
 import { Wallet } from '../../../src/components/Wallet';
-import { exportRecapPdf } from '../../../src/exportRecap';
 import { daySpend, tripTotal, usd } from '../../../src/format';
 import { gradient } from '../../../src/gradients';
 import { useStore } from '../../../src/store';
@@ -17,8 +15,7 @@ export default function TripSummaryScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { getTrip, getExpenses, getPhotos } = useStore();
-  const [exporting, setExporting] = useState(false);
+  const { getTrip, getExpenses, getPhotos, getMeals, getPlaces } = useStore();
 
   const trip = getTrip(id);
   if (!trip) {
@@ -33,21 +30,10 @@ export default function TripSummaryScreen() {
   const photos = getPhotos(trip.id);
   const coverPhoto = photos.find((p) => p.favorite) ?? photos[photos.length - 1];
   const cover = gradient(trip.coverGradient);
-  const placesCount = trip.days.reduce((n, d) => n + d.places.length, 0);
+  const placesCount = trip.days.reduce((n, d) => n + getPlaces(trip.id, d.index).length, 0);
   const scanned = expenses.filter((e) => e.source === 'scan').length;
   const emailed = expenses.filter((e) => e.source === 'email').length;
-
-  async function onShare() {
-    if (!trip || exporting) return;
-    try {
-      setExporting(true);
-      await exportRecapPdf(trip, expenses, photos);
-    } catch {
-      Alert.alert('Export failed', 'Could not create the PDF. Please try again.');
-    } finally {
-      setExporting(false);
-    }
-  }
+  const openShare = () => router.push(`/trip/${trip.id}/share`);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.paper }}>
@@ -78,15 +64,11 @@ export default function TripSummaryScreen() {
             <Ionicons name="chevron-back" size={22} color="#fff" />
           </Pressable>
           <Pressable
-            onPress={onShare}
+            onPress={openShare}
             accessibilityLabel="Share recap as PDF"
             style={[styles.shareBtn, { top: insets.top + 8 }]}
           >
-            {exporting ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Ionicons name="share-outline" size={20} color="#fff" />
-            )}
+            <Ionicons name="share-outline" size={20} color="#fff" />
           </Pressable>
           <View style={[styles.coverBody, { paddingTop: insets.top + 60 }]}>
             <Text style={[styles.kicker, { fontFamily: fonts.mono }]}>✦ TRAVELPAL · TRIP RECAP</Text>
@@ -116,6 +98,8 @@ export default function TripSummaryScreen() {
                 day={day}
                 spend={daySpend(expenses, day.index)}
                 photos={photos.filter((p) => p.dayIndex === day.index)}
+                mealNames={getMeals(trip.id, day.index).map((m) => m.name)}
+                placeNames={getPlaces(trip.id, day.index).map((p) => p.name)}
                 onPress={() => router.push(`/trip/${trip.id}/day/${day.index}`)}
               />
             ))}
@@ -136,8 +120,7 @@ export default function TripSummaryScreen() {
 
         <View style={styles.shareSection}>
           <Pressable
-            onPress={onShare}
-            disabled={exporting}
+            onPress={openShare}
             accessibilityLabel="Share this recap as a PDF"
             style={({ pressed }) => [styles.shareCta, pressed && { opacity: 0.9 }]}
           >
@@ -147,17 +130,11 @@ export default function TripSummaryScreen() {
               end={{ x: 1, y: 1 }}
               style={StyleSheet.absoluteFill}
             />
-            {exporting ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Ionicons name="share-outline" size={18} color="#fff" />
-            )}
-            <Text style={styles.shareCtaText}>
-              {exporting ? 'Building PDF…' : 'Share this recap'}
-            </Text>
+            <Ionicons name="share-outline" size={18} color="#fff" />
+            <Text style={styles.shareCtaText}>Share this recap</Text>
           </Pressable>
           <Text style={{ color: colors.inkSoft, fontFamily: fonts.mono, fontSize: 10.5, marginTop: 10 }}>
-            Exports a one-page PDF you can text, email or save.
+            Choose what to include, then export a one-page PDF.
           </Text>
         </View>
 

@@ -17,11 +17,15 @@ Pakistan) so every screen shows real content:
   a day-by-day card list, and the **Trip Wallet** (live category + per-day spend).
 - **Day page** (`app/trip/[id]/day/[day].tsx`) — the drill-down: the day's spend
   (tap a receipt thumbnail to view it full-screen), meals with itemized receipts,
-  places, and the photo roll. **Add photos** imports from the camera roll; tap a
-  photo to open the editor (`app/trip/[id]/photo/[photoId].tsx`) to caption it,
-  mark it a favorite, tag it to a meal or place, or add freeform **tags** like
-  "Outfit" — tagged photos appear under that meal/place, and a favorite (or your
-  latest) photo becomes the trip's cover and the day-card heroes.
+  places, and the photo roll. **Add** your own meals ("ate") and places ("saw")
+  per day (`app/trip/[id]/event.tsx`), and remove ones you added. **Add photos**
+  imports from the camera roll; tap a photo to open the editor
+  (`app/trip/[id]/photo/[photoId].tsx`) to caption it, mark it a favorite,
+  **feature** it in the recap (max 2/day), tag it to a meal or place, or add
+  freeform **tags** like "Outfit". Featured (else favorite) photos become the
+  trip cover and day-card heroes.
+- **Share options** (`app/trip/[id]/share.tsx`) — toggle whether the PDF includes
+  photos and/or spending before exporting.
 - **Browse by tag** (`app/collections.tsx`) — pick a tag or Favorites and see
   matching photos pulled from every trip.
 - **Receipt capture** (`app/trip/[id]/receipt.tsx`) — snap or upload a receipt;
