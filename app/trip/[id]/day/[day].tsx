@@ -83,6 +83,23 @@ export default function DayScreen() {
     }
   }
 
+  // Add a single photo already tagged to a meal or place.
+  async function addPhotoTo(tag: { mealId?: string; placeId?: string }) {
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert('Permission needed', 'Allow photo access to add a picture.');
+        return;
+      }
+      const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7 });
+      if (res.canceled || !res.assets[0]) return;
+      const uri = await persistLocalCopy(res.assets[0].uri, 'photo');
+      addPhotos([{ tripId: trip!.id, dayIndex, uri, ...tag }]);
+    } catch {
+      Alert.alert('Add failed', 'Could not add the photo. Please try again.');
+    }
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.surface }}>
       <View style={[styles.bar, { paddingTop: insets.top + 10, backgroundColor: colors.surface, borderColor: colors.line }]}>
@@ -142,6 +159,7 @@ export default function DayScreen() {
               theme={theme}
               photos={dayPhotos.filter((p) => p.mealId === meal.id)}
               onOpenPhoto={openPhoto}
+              onAddPhoto={() => addPhotoTo({ mealId: meal.id })}
               onDelete={meal.editable ? () => confirmDeleteMeal(meal) : undefined}
             />
           ))
@@ -153,21 +171,33 @@ export default function DayScreen() {
           <EmptyHint theme={theme} text="No places yet — tap Add." />
         ) : (
           <View style={styles.sawGrid}>
-            {places.map((p) => (
-              <View key={p.id} style={styles.sawItem}>
-                <PhotoTile gradientIndex={p.gradient ?? p.name.length + dayIndex} caption={p.name} />
-                <View style={styles.sawTitleRow}>
-                  <Text style={{ color: colors.ink, fontFamily: fonts.display, fontSize: 16, flex: 1 }}>{p.name}</Text>
-                  {p.editable ? (
-                    <Pressable onPress={() => confirmDeletePlace(p)} hitSlop={8} accessibilityLabel="Remove place">
-                      <Ionicons name="trash-outline" size={15} color={colors.inkSoft} />
-                    </Pressable>
-                  ) : null}
+            {places.map((p) => {
+              const pPhotos = dayPhotos.filter((ph) => ph.placeId === p.id);
+              const first = pPhotos[0];
+              return (
+                <View key={p.id} style={styles.sawItem}>
+                  <Pressable onPress={() => (first ? openPhoto(first.id) : addPhotoTo({ placeId: p.id }))}>
+                    <PhotoTile uri={first?.uri} gradientIndex={p.gradient ?? p.name.length + dayIndex} caption={p.name} />
+                    {!first ? (
+                      <View style={styles.addPhotoHint}>
+                        <Ionicons name="camera-outline" size={14} color="#fff" />
+                        <Text style={styles.addPhotoHintText}>Add photo</Text>
+                      </View>
+                    ) : null}
+                  </Pressable>
+                  <View style={styles.sawTitleRow}>
+                    <Text style={{ color: colors.ink, fontFamily: fonts.display, fontSize: 16, flex: 1 }}>{p.name}</Text>
+                    {p.editable ? (
+                      <Pressable onPress={() => confirmDeletePlace(p)} hitSlop={8} accessibilityLabel="Remove place">
+                        <Ionicons name="trash-outline" size={15} color={colors.inkSoft} />
+                      </Pressable>
+                    ) : null}
+                  </View>
+                  {p.note ? <Text style={{ color: colors.inkSoft, fontSize: 12.5 }}>{p.note}</Text> : null}
+                  <PhotoStrip photos={pPhotos.slice(1)} onOpenPhoto={openPhoto} onAdd={() => addPhotoTo({ placeId: p.id })} />
                 </View>
-                {p.note ? <Text style={{ color: colors.inkSoft, fontSize: 12.5 }}>{p.note}</Text> : null}
-                <PhotoStrip photos={dayPhotos.filter((ph) => ph.placeId === p.id)} onOpenPhoto={openPhoto} />
-              </View>
-            ))}
+              );
+            })}
           </View>
         )}
 
@@ -225,60 +255,68 @@ function MealBlock({
   theme,
   photos,
   onOpenPhoto,
+  onAddPhoto,
   onDelete,
 }: {
   meal: DayMeal;
   theme: Theme;
   photos: Photo[];
   onOpenPhoto: (id: string) => void;
+  onAddPhoto: () => void;
   onDelete?: () => void;
 }) {
   const { colors, fonts } = theme;
   return (
-    <View style={{ marginBottom: 20, paddingBottom: 20, borderBottomWidth: 1, borderColor: colors.line }}>
-      <View style={styles.mealRow}>
-        <View style={{ flex: 1, gap: 4 }}>
-          <View style={styles.mealTitleRow}>
-            <Text style={{ color: colors.ink, fontFamily: fonts.display, fontSize: 19, flex: 1 }}>{meal.name}</Text>
-            {onDelete ? (
-              <Pressable onPress={onDelete} hitSlop={8} accessibilityLabel="Remove meal">
-                <Ionicons name="trash-outline" size={15} color={colors.inkSoft} />
-              </Pressable>
-            ) : null}
-          </View>
-          {meal.location ? <Text style={{ color: colors.inkSoft, fontSize: 12.5 }}>{meal.location}</Text> : null}
-          {meal.dish ? <RichText text={meal.dish} style={{ color: colors.ink, fontSize: 14 }} /> : null}
-          {meal.rating ? <Stars rating={meal.rating} /> : null}
+    <View style={{ marginBottom: 20, paddingBottom: 20, borderBottomWidth: 1, borderColor: colors.line, gap: 14 }}>
+      <View style={{ gap: 4 }}>
+        <View style={styles.mealTitleRow}>
+          <Text style={{ color: colors.ink, fontFamily: fonts.display, fontSize: 20, flex: 1 }}>{meal.name}</Text>
+          {onDelete ? (
+            <Pressable onPress={onDelete} hitSlop={8} accessibilityLabel="Remove meal">
+              <Ionicons name="trash-outline" size={16} color={colors.inkSoft} />
+            </Pressable>
+          ) : null}
         </View>
-        {meal.receipt ? (
-          <View style={[styles.receipt, { borderColor: colors.line, backgroundColor: colors.surfaceAlt }]}>
-            <View style={[styles.receiptHead, { borderColor: colors.line }]}>
-              <Text style={{ color: colors.ink, fontFamily: fonts.display, fontSize: 14 }}>{meal.name}</Text>
-              <Text style={{ color: colors.teal, fontFamily: fonts.mono, fontSize: 9 }}>↓ {meal.receipt.source}</Text>
-            </View>
-            {meal.receipt.items.map((it, i) => (
-              <View key={i} style={styles.receiptLine}>
-                <Text style={{ color: colors.ink, fontFamily: fonts.mono, fontSize: 11.5 }}>{it.label}</Text>
-                <Text style={{ color: colors.inkSoft, fontFamily: fonts.mono, fontSize: 11.5 }}>{it.price}</Text>
-              </View>
-            ))}
-            <View style={[styles.receiptTotal, { borderColor: colors.line }]}>
-              <Text style={{ color: colors.ink, fontFamily: fonts.mono, fontSize: 12, fontWeight: '700' }}>Total</Text>
-              <Text style={{ color: colors.saffron, fontFamily: fonts.mono, fontSize: 12, fontWeight: '700' }}>
-                {meal.receipt.total} · {meal.receipt.usd}
-              </Text>
-            </View>
-          </View>
-        ) : null}
+        {meal.location ? <Text style={{ color: colors.inkSoft, fontSize: 12.5 }}>{meal.location}</Text> : null}
+        {meal.dish ? <RichText text={meal.dish} style={{ color: colors.ink, fontSize: 14 }} /> : null}
+        {meal.rating ? <Stars rating={meal.rating} /> : null}
       </View>
-      <PhotoStrip photos={photos} onOpenPhoto={onOpenPhoto} />
+      {meal.receipt ? (
+        <View style={[styles.receipt, { borderColor: colors.line, backgroundColor: colors.surfaceAlt }]}>
+          <View style={[styles.receiptHead, { borderColor: colors.line }]}>
+            <Text style={{ color: colors.ink, fontFamily: fonts.display, fontSize: 14 }}>{meal.name}</Text>
+            <Text style={{ color: colors.teal, fontFamily: fonts.mono, fontSize: 9 }}>↓ {meal.receipt.source}</Text>
+          </View>
+          {meal.receipt.items.map((it, i) => (
+            <View key={i} style={styles.receiptLine}>
+              <Text style={{ color: colors.ink, fontFamily: fonts.mono, fontSize: 11.5 }}>{it.label}</Text>
+              <Text style={{ color: colors.inkSoft, fontFamily: fonts.mono, fontSize: 11.5 }}>{it.price}</Text>
+            </View>
+          ))}
+          <View style={[styles.receiptTotal, { borderColor: colors.line }]}>
+            <Text style={{ color: colors.ink, fontFamily: fonts.mono, fontSize: 12, fontWeight: '700' }}>Total</Text>
+            <Text style={{ color: colors.saffron, fontFamily: fonts.mono, fontSize: 12, fontWeight: '700' }}>
+              {meal.receipt.total} · {meal.receipt.usd}
+            </Text>
+          </View>
+        </View>
+      ) : null}
+      <PhotoStrip photos={photos} onOpenPhoto={onOpenPhoto} onAdd={onAddPhoto} />
     </View>
   );
 }
 
-function PhotoStrip({ photos, onOpenPhoto }: { photos: Photo[]; onOpenPhoto: (id: string) => void }) {
+function PhotoStrip({
+  photos,
+  onOpenPhoto,
+  onAdd,
+}: {
+  photos: Photo[];
+  onOpenPhoto: (id: string) => void;
+  onAdd?: () => void;
+}) {
   const { colors } = useTheme();
-  if (photos.length === 0) return null;
+  if (photos.length === 0 && !onAdd) return null;
   return (
     <View style={styles.strip}>
       {photos.map((p) => (
@@ -286,6 +324,11 @@ function PhotoStrip({ photos, onOpenPhoto }: { photos: Photo[]; onOpenPhoto: (id
           <Image source={{ uri: p.uri }} style={[styles.stripThumb, { borderColor: colors.line }]} />
         </Pressable>
       ))}
+      {onAdd ? (
+        <Pressable onPress={onAdd} accessibilityLabel="Add a photo" style={[styles.stripAdd, { borderColor: colors.line }]}>
+          <Ionicons name="add" size={20} color={colors.inkSoft} />
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -328,14 +371,35 @@ const styles = StyleSheet.create({
   expRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 9, borderBottomWidth: 1 },
   expThumb: { width: 26, height: 26, borderRadius: 5, borderWidth: 1 },
   cat: { fontSize: 9.5, letterSpacing: 0.4, borderWidth: 1, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, overflow: 'hidden' },
-  mealRow: { flexDirection: 'row', gap: 16, flexWrap: 'wrap' },
   mealTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  receipt: { flexGrow: 1, minWidth: 220, borderWidth: 1, borderStyle: 'dashed', borderRadius: 8, padding: 15 },
+  receipt: { borderWidth: 1, borderStyle: 'dashed', borderRadius: 8, padding: 15 },
   receiptHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', borderBottomWidth: 1, borderStyle: 'dashed', paddingBottom: 8, marginBottom: 9 },
   receiptLine: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2.5 },
   receiptTotal: { flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderStyle: 'dashed', marginTop: 9, paddingTop: 9 },
   strip: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
   stripThumb: { width: 54, height: 54, borderRadius: 7, borderWidth: 1 },
+  stripAdd: {
+    width: 54,
+    height: 54,
+    borderRadius: 7,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addPhotoHint: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(0,0,0,0.42)',
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+  },
+  addPhotoHintText: { color: '#fff', fontSize: 11, fontWeight: '600' },
   sawGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
   sawItem: { flexBasis: '46%', flexGrow: 1 },
   sawTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 9 },
