@@ -4,8 +4,20 @@ import type { Day, Expense, Trip } from './types';
 
 // Builds the shareable one-page recap as a self-contained HTML document, ready
 // for expo-print to render to a PDF. Mirrors the in-app recap: cover, stats,
-// a day-by-day digest, and the trip wallet. Gradient "photos" render as CSS
-// backgrounds, so it needs no external assets.
+// a day-by-day digest, and the trip wallet. Real photos are embedded as base64
+// data URIs (see exportRecap); days without user photos fall back to gradient
+// placeholders, so it always renders with no external assets.
+
+export interface RecapHero {
+  uri: string; // data URI
+  caption?: string;
+  favorite?: boolean;
+}
+
+export interface RecapMedia {
+  cover?: string; // data URI
+  heroesByDay?: Record<number, RecapHero[]>;
+}
 
 function esc(s: string): string {
   return s
@@ -32,13 +44,23 @@ function photo(caption: string, gradientIndex: number, tag?: string): string {
   </div>`;
 }
 
-function dayBlock(day: Day, spend: number): string {
-  const heroes = `<div class="heroes ${day.heroes.length > 1 ? 'two' : ''}">
-    ${day.heroes
-      .slice(0, 2)
-      .map((h) => photo(h.caption, h.gradient, h.favorite ? 'favorite' : `Day ${day.index}`))
-      .join('')}
+function imgPhoto(uri: string, caption?: string, tag?: string): string {
+  return `<div class="photo" style="background-image:url('${uri}')">
+    ${tag ? `<span class="tag">${esc(tag)}</span>` : ''}
+    ${caption ? `<span class="cap">${esc(caption)}</span>` : ''}
   </div>`;
+}
+
+function dayBlock(day: Day, spend: number, heroPhotos?: RecapHero[]): string {
+  const heroList =
+    heroPhotos && heroPhotos.length
+      ? heroPhotos.map((h) => imgPhoto(h.uri, h.caption, h.favorite ? 'favorite' : `Day ${day.index}`)).join('')
+      : day.heroes
+          .slice(0, 2)
+          .map((h) => photo(h.caption, h.gradient, h.favorite ? 'favorite' : `Day ${day.index}`))
+          .join('');
+  const count = heroPhotos?.length ?? day.heroes.length;
+  const heroes = `<div class="heroes ${count > 1 ? 'two' : ''}">${heroList}</div>`;
 
   const ate = day.meals
     .map((m) => `<li><span>${rich(m.name)}</span><span class="c">${esc(m.receipt.usd)}</span></li>`)
@@ -56,14 +78,17 @@ function dayBlock(day: Day, spend: number): string {
   </div>`;
 }
 
-export function buildRecapHtml(trip: Trip, expenses: Expense[]): string {
+export function buildRecapHtml(trip: Trip, expenses: Expense[], media: RecapMedia = {}): string {
   const total = tripTotal(expenses);
   const cats = categoryTotals(expenses);
   const placesCount = trip.days.reduce((n, d) => n + d.places.length, 0);
   const scanned = expenses.filter((e) => e.source === 'scan').length;
   const emailed = expenses.filter((e) => e.source === 'email').length;
 
-  const days = trip.days.map((d) => dayBlock(d, daySpend(expenses, d.index))).join('');
+  const days = trip.days.map((d) => dayBlock(d, daySpend(expenses, d.index), media.heroesByDay?.[d.index])).join('');
+  const coverStyle = media.cover
+    ? `background-image:url('${media.cover}');`
+    : `background:${cssGradient(trip.coverGradient, 150)};`;
   const catRows = cats
     .map(
       (c) => `<div class="row">
@@ -90,7 +115,7 @@ export function buildRecapHtml(trip: Trip, expenses: Expense[]): string {
 
   .cover {
     position: relative; color: #fff; padding: 30px 26px 24px; border-radius: 10px; overflow: hidden;
-    background: ${cssGradient(trip.coverGradient, 150)};
+    background-size: cover; background-position: center;
   }
   .cover::after { content:""; position:absolute; inset:0;
     background: linear-gradient(180deg, rgba(10,14,15,.05), rgba(10,14,15,.66)); }
@@ -111,7 +136,7 @@ export function buildRecapHtml(trip: Trip, expenses: Expense[]): string {
 
   .daycard { display: grid; grid-template-columns: 1fr 1.15fr; gap: 16px; border: 1px solid #E4DCC9; border-radius: 9px; padding: 12px; margin-bottom: 12px; break-inside: avoid; }
   .heroes { display: grid; gap: 6px; } .heroes.two { grid-template-columns: 1fr 1fr; }
-  .photo { position: relative; border-radius: 5px; overflow: hidden; aspect-ratio: 4/3; display: flex; align-items: flex-end; color:#fff; }
+  .photo { position: relative; border-radius: 5px; overflow: hidden; aspect-ratio: 4/3; display: flex; align-items: flex-end; color:#fff; background-size: cover; background-position: center; }
   .photo::after { content:""; position:absolute; inset:0; background: linear-gradient(180deg, transparent 45%, rgba(0,0,0,.55)); }
   .photo .cap { position: relative; z-index:1; padding: 8px 10px; font-size: 10.5px; font-weight: 600; text-shadow: 0 1px 3px rgba(0,0,0,.5); }
   .photo .tag { position: absolute; top: 6px; right: 6px; z-index:1; font-family:"SF Mono",monospace; font-size: 8.5px; background: rgba(0,0,0,.42); padding: 2px 6px; border-radius: 20px; }
@@ -136,7 +161,7 @@ export function buildRecapHtml(trip: Trip, expenses: Expense[]): string {
   .foot { margin-top: 18px; text-align: center; font-family:"SF Mono",monospace; font-size: 10px; color: #6C675A; }
 </style></head>
 <body>
-  <div class="cover">
+  <div class="cover" style="${coverStyle}">
     <p class="kicker">✦ TravelPal · Trip Recap</p>
     <h1>${esc(trip.title)}</h1>
     <p class="sub">${esc(trip.subtitle)}</p>

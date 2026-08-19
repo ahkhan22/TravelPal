@@ -41,7 +41,7 @@ export default function TripSummaryScreen() {
     if (!trip || exporting) return;
     try {
       setExporting(true);
-      await exportRecapPdf(trip, expenses);
+      await exportRecapPdf(trip, expenses, photos);
     } catch {
       Alert.alert('Export failed', 'Could not create the PDF. Please try again.');
     } finally {

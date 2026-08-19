@@ -33,7 +33,10 @@ the totals immediately.
 
 **Share as PDF** — the recap screen's share button renders the trip to a
 one-page PDF (`src/recapHtml.ts` → `expo-print`) and opens the native share
-sheet (`expo-sharing`), so you can text, email or save it.
+sheet (`expo-sharing`), so you can text, email or save it. Your real photos are
+embedded (cover + day heroes): `src/exportRecap.ts` converts them to resized
+JPEG base64 with `expo-image-manipulator` (so iOS HEIC renders too); days
+without user photos fall back to gradient placeholders.
 
 ## Design system
 
