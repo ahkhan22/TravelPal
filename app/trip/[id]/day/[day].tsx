@@ -11,7 +11,7 @@ import { daySpend, usd } from '../../../../src/format';
 import { persistLocalCopy } from '../../../../src/media';
 import { useStore } from '../../../../src/store';
 import { useTheme, type Theme } from '../../../../src/theme';
-import type { DayMeal, DayPlace, ExpenseSource, Photo } from '../../../../src/types';
+import type { DayMeal, DayPlace, Expense, ExpenseSource, Photo } from '../../../../src/types';
 
 export default function DayScreen() {
   const theme = useTheme();
@@ -158,8 +158,11 @@ export default function DayScreen() {
               meal={meal}
               theme={theme}
               photos={dayPhotos.filter((p) => p.mealId === meal.id)}
+              expense={dayExpenses.find((e) => e.mealId === meal.id)}
               onOpenPhoto={openPhoto}
               onAddPhoto={() => addPhotoTo({ mealId: meal.id })}
+              onAddReceipt={() => router.push(`/trip/${trip.id}/receipt?day=${dayIndex}&mealId=${meal.id}`)}
+              onViewReceipt={(uri) => setLightbox(uri)}
               onDelete={meal.editable ? () => confirmDeleteMeal(meal) : undefined}
             />
           ))
@@ -254,15 +257,21 @@ function MealBlock({
   meal,
   theme,
   photos,
+  expense,
   onOpenPhoto,
   onAddPhoto,
+  onAddReceipt,
+  onViewReceipt,
   onDelete,
 }: {
   meal: DayMeal;
   theme: Theme;
   photos: Photo[];
+  expense?: Expense;
   onOpenPhoto: (id: string) => void;
   onAddPhoto: () => void;
+  onAddReceipt: () => void;
+  onViewReceipt: (uri: string) => void;
   onDelete?: () => void;
 }) {
   const { colors, fonts } = theme;
@@ -281,7 +290,9 @@ function MealBlock({
         {meal.dish ? <RichText text={meal.dish} style={{ color: colors.ink, fontSize: 14 }} /> : null}
         {meal.rating ? <Stars rating={meal.rating} /> : null}
       </View>
+
       {meal.receipt ? (
+        // Seed meals carry an itemized receipt.
         <View style={[styles.receipt, { borderColor: colors.line, backgroundColor: colors.surfaceAlt }]}>
           <View style={[styles.receiptHead, { borderColor: colors.line }]}>
             <Text style={{ color: colors.ink, fontFamily: fonts.display, fontSize: 14 }}>{meal.name}</Text>
@@ -300,7 +311,29 @@ function MealBlock({
             </Text>
           </View>
         </View>
-      ) : null}
+      ) : expense ? (
+        // A scanned receipt linked to this meal.
+        <View style={[styles.linkedReceipt, { borderColor: colors.line, backgroundColor: colors.surfaceAlt }]}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: colors.inkSoft, fontFamily: fonts.mono, fontSize: 9.5, letterSpacing: 0.5 }}>RECEIPT · {expense.source}</Text>
+            <Text style={{ color: colors.saffron, fontFamily: fonts.mono, fontSize: 15, fontWeight: '700', marginTop: 2 }}>
+              {usd(expense.amountHome)}
+              {expense.local ? ` · ${expense.local.currency} ${expense.local.amount}` : ''}
+            </Text>
+          </View>
+          {expense.receiptPhotoUri ? (
+            <Pressable onPress={() => onViewReceipt(expense.receiptPhotoUri!)} accessibilityLabel="View receipt">
+              <Image source={{ uri: expense.receiptPhotoUri }} style={[styles.linkedThumb, { borderColor: colors.line }]} />
+            </Pressable>
+          ) : null}
+        </View>
+      ) : (
+        <Pressable onPress={onAddReceipt} style={[styles.addReceiptBtn, { borderColor: colors.teal }]}>
+          <Ionicons name="receipt-outline" size={15} color={colors.teal} />
+          <Text style={{ color: colors.teal, fontFamily: fonts.mono, fontSize: 12 }}>Add receipt</Text>
+        </Pressable>
+      )}
+
       <PhotoStrip photos={photos} onOpenPhoto={onOpenPhoto} onAdd={onAddPhoto} />
     </View>
   );
@@ -373,6 +406,19 @@ const styles = StyleSheet.create({
   cat: { fontSize: 9.5, letterSpacing: 0.4, borderWidth: 1, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, overflow: 'hidden' },
   mealTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   receipt: { borderWidth: 1, borderStyle: 'dashed', borderRadius: 8, padding: 15 },
+  linkedReceipt: { flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 1, borderStyle: 'dashed', borderRadius: 8, padding: 14 },
+  linkedThumb: { width: 46, height: 46, borderRadius: 6, borderWidth: 1 },
+  addReceiptBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderRadius: 999,
+    paddingHorizontal: 13,
+    paddingVertical: 7,
+  },
   receiptHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', borderBottomWidth: 1, borderStyle: 'dashed', paddingBottom: 8, marginBottom: 9 },
   receiptLine: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2.5 },
   receiptTotal: { flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderStyle: 'dashed', marginTop: 9, paddingTop: 9 },

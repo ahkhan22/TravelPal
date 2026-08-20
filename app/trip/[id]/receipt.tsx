@@ -8,9 +8,9 @@ import { usd } from '../../../src/format';
 import { persistLocalCopy } from '../../../src/media';
 import { useStore } from '../../../src/store';
 import { useTheme } from '../../../src/theme';
-import type { ExpenseCategory } from '../../../src/types';
+import type { DayMeal, ExpenseCategory } from '../../../src/types';
 
-const CATEGORIES: ExpenseCategory[] = ['Food', 'Transport', 'Shopping', 'Activities', 'Hotel', 'Other'];
+const CATEGORIES: ExpenseCategory[] = ['Food', 'Transport', 'Shopping', 'Activities', 'Hotel', 'Flights', 'Other'];
 const PKR_PER_USD = 281;
 type Currency = 'PKR' | 'USD';
 
@@ -18,21 +18,36 @@ export default function ReceiptScreen() {
   const { colors, fonts } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const { getTrip, addExpense } = useStore();
+  const { id, day, mealId } = useLocalSearchParams<{ id: string; day?: string; mealId?: string }>();
+  const { getTrip, addExpense, getMeals } = useStore();
   const trip = getTrip(id);
 
+  const presetDay = day ? Number(day) : (trip?.days.length ?? 1);
+  // A meal linked at launch pre-fills the merchant.
+  const launchMeal = mealId ? getMeals(id, presetDay).find((m) => m.id === mealId) : undefined;
+
   const [imageUri, setImageUri] = useState<string | null>(null);
-  const [merchant, setMerchant] = useState('');
+  const [dayIndex, setDayIndex] = useState<number | null>(presetDay);
+  const [mealSel, setMealSel] = useState<string | null>(mealId ?? null);
+  const [merchant, setMerchant] = useState(launchMeal?.name ?? '');
   const [amount, setAmount] = useState('');
   const [currency, setCurrency] = useState<Currency>('PKR');
   const [category, setCategory] = useState<ExpenseCategory>('Food');
-  const [dayIndex, setDayIndex] = useState<number>(trip?.days.length ?? 1);
   const [saving, setSaving] = useState(false);
 
+  const dayMeals = dayIndex != null ? getMeals(id, dayIndex) : [];
   const amountNum = Number(amount) || 0;
   const amountHome = currency === 'PKR' ? Math.round(amountNum / PKR_PER_USD) : Math.round(amountNum);
   const canSave = amountNum > 0 && !saving;
+
+  function selectDay(d: number | null) {
+    setDayIndex(d);
+    setMealSel(null); // meals differ per day
+  }
+  function selectMeal(m: DayMeal | null) {
+    setMealSel(m?.id ?? null);
+    if (m) setMerchant(m.name); // autopopulate
+  }
 
   async function capture(mode: 'camera' | 'library') {
     try {
@@ -48,9 +63,7 @@ export default function ReceiptScreen() {
         mode === 'camera'
           ? await ImagePicker.launchCameraAsync({ quality: 0.6 })
           : await ImagePicker.launchImageLibraryAsync({ quality: 0.6, mediaTypes: ['images'] });
-      if (!result.canceled && result.assets[0]) {
-        setImageUri(result.assets[0].uri);
-      }
+      if (!result.canceled && result.assets[0]) setImageUri(result.assets[0].uri);
     } catch {
       Alert.alert('Could not open camera', 'Something went wrong capturing the receipt.');
     }
@@ -71,8 +84,10 @@ export default function ReceiptScreen() {
         source: 'scan',
         merchant: merchant.trim() || undefined,
         receiptPhotoUri: storedUri,
+        mealId: dayIndex != null ? mealSel || undefined : undefined,
       });
-      Alert.alert('Saved to trip', `${merchant.trim() || 'Receipt'} · ${usd(amountHome)} added to Day ${dayIndex}.`, [
+      const where = dayIndex != null ? `Day ${dayIndex}` : 'pre-trip expenses';
+      Alert.alert('Saved to trip', `${merchant.trim() || 'Receipt'} · ${usd(amountHome)} added to ${where}.`, [
         { text: 'Done', onPress: () => router.back() },
       ]);
     } catch {
@@ -120,8 +135,62 @@ export default function ReceiptScreen() {
           </View>
         )}
 
-        {/* Details */}
         <View style={{ gap: 16 }}>
+          {/* Day first — it drives the meal options below */}
+          <Field label="Which day" colors={colors} fonts={fonts}>
+            <View style={styles.chips}>
+              <Pressable
+                onPress={() => selectDay(null)}
+                style={[styles.chip, { borderColor: colors.line }, dayIndex == null && { backgroundColor: colors.inkSoft, borderColor: colors.inkSoft }]}
+              >
+                <Text style={{ color: dayIndex == null ? '#fff' : colors.ink, fontSize: 12.5 }}>Pre-trip</Text>
+              </Pressable>
+              {(trip?.days ?? []).map((d) => {
+                const active = d.index === dayIndex;
+                return (
+                  <Pressable
+                    key={d.index}
+                    onPress={() => selectDay(d.index)}
+                    style={[styles.chip, { borderColor: colors.line }, active && { backgroundColor: colors.teal, borderColor: colors.teal }]}
+                  >
+                    <Text style={{ color: active ? '#fff' : colors.ink, fontSize: 12.5 }}>Day {d.index}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            {dayIndex == null ? (
+              <Text style={{ color: colors.inkSoft, fontFamily: fonts.mono, fontSize: 10.5, marginTop: 6 }}>
+                Not tied to a day — for flights, hotels &amp; anything booked before the trip.
+              </Text>
+            ) : null}
+          </Field>
+
+          {/* Link to a meal on that day (autofills the merchant) */}
+          {dayIndex != null && dayMeals.length > 0 ? (
+            <Field label="Link to a meal (optional)" colors={colors} fonts={fonts}>
+              <View style={styles.chips}>
+                <Pressable
+                  onPress={() => selectMeal(null)}
+                  style={[styles.chip, { borderColor: colors.line }, !mealSel && { backgroundColor: colors.inkSoft, borderColor: colors.inkSoft }]}
+                >
+                  <Text style={{ color: !mealSel ? '#fff' : colors.ink, fontSize: 12.5 }}>None</Text>
+                </Pressable>
+                {dayMeals.map((m) => {
+                  const active = m.id === mealSel;
+                  return (
+                    <Pressable
+                      key={m.id}
+                      onPress={() => selectMeal(m)}
+                      style={[styles.chip, { borderColor: colors.line }, active && { backgroundColor: colors.saffron, borderColor: colors.saffron }]}
+                    >
+                      <Text style={{ color: active ? colors.onAccent : colors.ink, fontSize: 12.5 }}>{m.name}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </Field>
+          ) : null}
+
           <Field label="Merchant" colors={colors} fonts={fonts}>
             <TextInput
               value={merchant}
@@ -182,25 +251,8 @@ export default function ReceiptScreen() {
             </View>
           </Field>
 
-          <Field label="Add to day" colors={colors} fonts={fonts}>
-            <View style={styles.chips}>
-              {(trip?.days ?? []).map((d) => {
-                const active = d.index === dayIndex;
-                return (
-                  <Pressable
-                    key={d.index}
-                    onPress={() => setDayIndex(d.index)}
-                    style={[styles.chip, { borderColor: colors.line }, active && { backgroundColor: colors.teal, borderColor: colors.teal }]}
-                  >
-                    <Text style={{ color: active ? '#fff' : colors.ink, fontSize: 12.5 }}>Day {d.index}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </Field>
-
           <Text style={{ color: colors.inkSoft, fontFamily: fonts.mono, fontSize: 10.5, lineHeight: 16 }}>
-            Type the merchant and total from your receipt for now — automatic reading is coming. PKR converts at ~{PKR_PER_USD} = $1.
+            Type the total from your receipt for now — automatic reading is coming. PKR converts at ~{PKR_PER_USD} = $1.
           </Text>
         </View>
 

@@ -30,6 +30,8 @@ export interface Expense {
   date?: string;
   /** Local file URI of the captured receipt photo, if any. */
   receiptPhotoUri?: string;
+  /** Links this expense to a specific meal on the day, if scanned from one. */
+  mealId?: string;
 }
 
 export interface ReceiptLine {
